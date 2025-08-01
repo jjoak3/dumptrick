@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List
 import uvicorn
 
 # Create FastAPI app
@@ -14,26 +15,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initiate list of connected WebSocket clients
+connected_clients: List[WebSocket] = []
+
 
 @app.get("/")
 async def root():
     return {"message": "Server running"}
-
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     # Accept handshake from client
     await websocket.accept()
     print("Client connected")
+
+    # Get client_address
+    client_address = str(websocket.client.host) + ":" + str(websocket.client.port)
+
+    # Add client to connected_clients
+    connected_clients.append(websocket)
+
     try:
         # While connection is open, listen for messages
         while True:
-            data = await websocket.receive_text()
-            print(f"Received from client: {data}")
+            message = await websocket.receive_text()
+            print(f"Received from client: {message}")
 
-            # Echo data back to client
-            await websocket.send_text(data)
+            # Broadcast message to connected_clients
+            for client in connected_clients:
+                await client.send_text(f"{client_address}: {message}")
     except WebSocketDisconnect:
+        # On disconnect, remove client from connected_clients
+        connected_clients.remove(websocket)
         print("Client disconnected")
 
 
