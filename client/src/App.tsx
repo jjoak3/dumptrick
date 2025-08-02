@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 
 function App() {
+  const [clientAddress, setClientAddress] = useState('')
+  const [clientAddresses, setClientAddresses] = useState<string[]>([])
   const [connected, setConnected] = useState(false)
   const [messages, setMessages] = useState<string[]>([])
   const [input, setInput] = useState('')
@@ -22,7 +24,15 @@ function App() {
     }
 
     ws.onmessage = (event) => {
-      setMessages((prev) => [...prev, event.data])
+      try {
+        // Parse incoming data from WebSocket server
+        const data = JSON.parse(event.data)
+        if (data.client_address) setClientAddress(data.client_address)
+        if (data.client_addresses) setClientAddresses(data.client_addresses)
+        if (data.message) setMessages((prevMessages) => [...prevMessages, data.message])
+      } catch (error) {
+        console.error('Error parsing message:', error)
+      }
     }
 
     // Close WebSocket connection on component unmount
@@ -40,16 +50,29 @@ function App() {
 
   return (
     <>
-      <p>Connected to WebSocket: {connected ? 'Yes' : 'No'}</p>
       <form onSubmit={sendMessage}>
         <input onChange={(e) => setInput(e.target.value)} type='text' value={input} />
         <button type='submit'>Send</button>
       </form>
-      <ul>
-        {messages.map((message, id) => (
-          <li key={id}>{message}</li>
-        ))}
-      </ul>
+      <pre>
+        <p>{clientAddress && connected ? `Connected to WebSocket server as ${clientAddress}` : 'Not connected to WebSocket server'}</p>
+        <p>Clients:</p>
+        <ol>
+          {clientAddresses.map((clientAddress, index) => (
+            <li key={index}>
+              <code>{clientAddress}</code>
+            </li>
+          ))}
+        </ol>
+        <p>Messages:</p>
+        <ul>
+          {messages.map((message, id) => (
+            <li key={id}>
+              {clientAddress}: {message}
+            </li>
+          ))}
+        </ul>
+      </pre>
     </>
   )
 }
