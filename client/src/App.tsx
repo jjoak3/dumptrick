@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 
+interface GameState {
+  round: number
+  status: string // 'waiting', 'playing', 'finished'
+}
+
 function App() {
   const [clientAddress, setClientAddress] = useState('')
   const [clientAddresses, setClientAddresses] = useState<string[]>([])
   const [connected, setConnected] = useState(false)
-  const [messages, setMessages] = useState<string[]>([])
-  const [input, setInput] = useState('')
+  const [gameState, setGameState] = useState<GameState | undefined>(undefined)
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
@@ -29,7 +33,7 @@ function App() {
         const data = JSON.parse(event.data)
         if (data.client_address) setClientAddress(data.client_address)
         if (data.client_addresses) setClientAddresses(data.client_addresses)
-        if (data.message) setMessages((prevMessages) => [...prevMessages, data.message])
+        if (data.game_state) setGameState(data.game_state)
       } catch (error) {
         console.error('Error parsing message:', error)
       }
@@ -39,38 +43,58 @@ function App() {
     return () => ws.close()
   }, [])
 
-  const sendMessage = (event: React.FormEvent<HTMLFormElement>) => {
-    event?.preventDefault()
+  const handleAction = (action: string) => {
+    if (wsRef.current && connected) {
+      wsRef.current.send(JSON.stringify({ action }))
+    }
+  }
 
-    if (wsRef.current && connected && input) {
-      wsRef.current.send(input)
-      setInput('')
+  const renderActionButtons = () => {
+    switch (gameState?.status) {
+      case 'waiting':
+        return <button onClick={() => handleAction('start_game')}>Start game</button>
+      case 'playing':
+        return <button onClick={() => handleAction('next_round')}>Next round</button>
+      case 'finished':
+        return <button onClick={() => handleAction('restart_game')}>Restart game</button>
+      default:
+        return null
+    }
+  }
+
+  const renderConnectionStatus = () => {
+    if (clientAddress && connected) {
+      return `Connected to WebSocket server as ${clientAddress}`
+    } else {
+      return 'Not connected to WebSocket server'
     }
   }
 
   return (
     <>
-      <form onSubmit={sendMessage}>
-        <input onChange={(e) => setInput(e.target.value)} type='text' value={input} />
-        <button type='submit'>Send</button>
-      </form>
+      {renderActionButtons()}
       <pre>
-        <p>{clientAddress && connected ? `Connected to WebSocket server as ${clientAddress}` : 'Not connected to WebSocket server'}</p>
+        <p>{renderConnectionStatus()}</p>
         <p>Clients:</p>
-        <ol>
-          {clientAddresses.map((clientAddress, index) => (
-            <li key={index}>
-              <code>{clientAddress}</code>
-            </li>
-          ))}
-        </ol>
-        <p>Messages:</p>
         <ul>
-          {messages.map((message, id) => (
-            <li key={id}>
-              {clientAddress}: {message}
+          {clientAddresses.map((address, index) => (
+            <li key={index}>
+              <code>{address}</code>
             </li>
           ))}
+        </ul>
+        <p>Game state</p>
+        <ul>
+          {gameState ? (
+            <>
+              <li>round: {gameState.round}</li>
+              <li>status: {gameState.status}</li>
+            </>
+          ) : (
+            <li>
+              <i>No game state</i>
+            </li>
+          )}
         </ul>
       </pre>
     </>

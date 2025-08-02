@@ -2,6 +2,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from logging import error
 from typing import Any, Dict, List
+import json
 import uvicorn
 
 # Create FastAPI app
@@ -18,6 +19,12 @@ app.add_middleware(
 
 # Initiate list of connected WebSocket clients
 connected_sockets: List[WebSocket] = []
+
+# Initiate game state
+game_state: Dict[str, Any] = {
+    "round": 0,
+    "status": "waiting",  # waiting, playing, finished
+}
 
 
 # Broadcasts provided payload to connected_sockets
@@ -52,8 +59,13 @@ async def websocket_endpoint(websocket: WebSocket):
     # Add client to connected_sockets
     connected_sockets.append(websocket)
 
-    # Send client_address to client
-    await websocket.send_json({"client_address": client_address})
+    # Send client_address and game_state to client
+    await websocket.send_json(
+        {
+            "client_address": client_address,
+            "game_state": game_state,
+        }
+    )
 
     # Broadcast connect message
     await broadcast(
@@ -67,13 +79,14 @@ async def websocket_endpoint(websocket: WebSocket):
         # While connection is open, listen for messages from client
         while True:
             message = await websocket.receive_text()
+            action = json.loads(message).get("action")
 
-            # Broadcast message from client
-            await broadcast(
-                {
-                    "message": message,
-                }
-            )
+            if action == "start_game":
+                game_state["status"] = "playing"
+            elif action == "next_round":
+                game_state["round"] += 1
+
+            await broadcast({"game_state": game_state})
     except WebSocketDisconnect:
         # On disconnect, remove client from connected_sockets
         connected_sockets.remove(websocket)
