@@ -6,45 +6,52 @@ interface GameState {
 }
 
 function App() {
-  const [clientAddress, setClientAddress] = useState('')
-  const [clientAddresses, setClientAddresses] = useState<string[]>([])
-  const [connected, setConnected] = useState(false)
   const [gameState, setGameState] = useState<GameState | undefined>(undefined)
+  const [players, setPlayers] = useState<string[]>([])
+  const [sessionId, setSessionId] = useState('')
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
+    // Get session ID from localStorage
+    let storedSessionId = localStorage.getItem('session_id')
+
+    // Build WebSocket URL
+    // If session ID exists, append as query param
+    const wsUrl = 'ws://localhost:8000/ws' + (storedSessionId ? `?session_id=${storedSessionId}` : '')
+
     // Connect to FastAPI WebSocket server
-    const ws = new WebSocket('ws://localhost:8000/ws')
+    const ws = new WebSocket(wsUrl)
 
     // Store WebSocket instance in ref to prevent re-creation on re-renders
     wsRef.current = ws
 
-    ws.onopen = () => {
-      setConnected(true)
-    }
-
-    ws.onclose = () => {
-      setConnected(false)
-    }
-
     ws.onmessage = (event) => {
       try {
-        // Parse incoming data from WebSocket server
         const data = JSON.parse(event.data)
-        if (data.client_address) setClientAddress(data.client_address)
-        if (data.client_addresses) setClientAddresses(data.client_addresses)
-        if (data.game_state) setGameState(data.game_state)
+
+        if (data.game_state) {
+          setGameState(data.game_state)
+        }
+
+        if (data.players) {
+          setPlayers(data.players)
+        }
+
+        if (data.session_id) {
+          setSessionId(data.session_id)
+          localStorage.setItem('session_id', data.session_id)
+        }
       } catch (error) {
         console.error('Error parsing message:', error)
       }
     }
 
-    // Close WebSocket connection on component unmount
+    // Close WebSocket connection when component unmounts
     return () => ws.close()
   }, [])
 
   const handleAction = (action: string) => {
-    if (wsRef.current && connected) {
+    if (wsRef.current) {
       wsRef.current.send(JSON.stringify({ action }))
     }
   }
@@ -63,8 +70,8 @@ function App() {
   }
 
   const renderConnectionStatus = () => {
-    if (clientAddress && connected) {
-      return `Connected to WebSocket server as ${clientAddress}`
+    if (wsRef.current) {
+      return `Connected as Player ${sessionId}`
     } else {
       return 'Not connected to WebSocket server'
     }
@@ -75,12 +82,10 @@ function App() {
       {renderActionButtons()}
       <pre>
         <p>{renderConnectionStatus()}</p>
-        <p>Clients:</p>
+        <p>Players:</p>
         <ul>
-          {clientAddresses.map((address, index) => (
-            <li key={index}>
-              <code>{address}</code>
-            </li>
+          {players.map((name, index) => (
+            <li key={index}>{name}</li>
           ))}
         </ul>
         <p>Game state</p>

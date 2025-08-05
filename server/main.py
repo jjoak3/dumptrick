@@ -1,6 +1,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from logging import error
+from nanoid import generate
+from pydantic import BaseModel
 from typing import Any, Dict, List
 import json
 import uvicorn
@@ -17,8 +19,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initiate list of connected WebSocket clients
-connected_sockets: List[WebSocket] = []
+
+class Player(BaseModel):
+    name: str
+    session_id: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "session_id": self.session_id,
+        }
+
+
+# Initiate players
+players: Dict[str, Player] = {}
+
+# Initiate session ID to WebSocket map
+session_to_socket: Dict[str, WebSocket] = {}
 
 # Initiate game state
 game_state: Dict[str, Any] = {
@@ -26,21 +43,38 @@ game_state: Dict[str, Any] = {
     "status": "waiting",  # waiting, playing, finished
 }
 
+MAX_PLAYERS = 4
 
-# Broadcasts provided payload to connected_sockets
+
 async def broadcast(payload: Dict[str, Any]):
-    for socket in connected_sockets:
+    for socket in session_to_socket.values():
         try:
             await socket.send_json(payload)
         except Exception:
             error(f"Error broadcasting to {socket.client.host}:{socket.client.port}")
 
 
-# Returns list of client addresses
-def get_client_addresses() -> List[str]:
-    return [
-        f"{socket.client.host}:{socket.client.port}" for socket in connected_sockets
-    ]
+def generate_session_id() -> str:
+    return generate(alphabet="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", size=4)
+
+
+def add_player(session_id: str):
+    players[session_id] = Player(
+        name=f"Player {session_id}",
+        session_id=session_id,
+    )
+
+
+def connect_player(session_id: str, websocket: WebSocket):
+    session_to_socket[session_id] = websocket
+
+
+def disconnect_player(session_id: str):
+    del session_to_socket[session_id]
+
+
+def get_player_names() -> List[str]:
+    return [player.name for player in players.values()]
 
 
 @app.get("/")
@@ -53,25 +87,40 @@ async def websocket_endpoint(websocket: WebSocket):
     # Accept handshake from client
     await websocket.accept()
 
-    # Get client_address
-    client_address = str(websocket.client.host) + ":" + str(websocket.client.port)
+    # Get session ID from query params
+    session_id = websocket.query_params.get("session_id")
 
-    # Add client to connected_sockets
-    connected_sockets.append(websocket)
+    # If no or invalid session ID
+    if not session_id or session_id not in players:
+        # Generate new session ID
+        session_id = generate_session_id()
 
-    # Send client_address and game_state to client
+        # If space for new player, add player
+        if len(players) < MAX_PLAYERS:
+            add_player(session_id)
+
+            # Broadcast new player
+            await broadcast(
+                {
+                    "players": get_player_names(),
+                }
+            )
+
+        # Else, close WebSocket connection
+        else:
+            # TODO: Message client that game is full
+            await websocket.close()
+            return
+
+    # Map session ID to WebSocket
+    connect_player(session_id, websocket)
+
+    # Send game state to client
     await websocket.send_json(
         {
-            "client_address": client_address,
             "game_state": game_state,
-        }
-    )
-
-    # Broadcast connect message
-    await broadcast(
-        {
-            "client_addresses": get_client_addresses(),
-            "message": f"{client_address} connected",
+            "players": get_player_names(),
+            "session_id": session_id,
         }
     )
 
@@ -83,21 +132,20 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if action == "start_game":
                 game_state["status"] = "playing"
+
             elif action == "next_round":
                 game_state["round"] += 1
 
-            await broadcast({"game_state": game_state})
-    except WebSocketDisconnect:
-        # On disconnect, remove client from connected_sockets
-        connected_sockets.remove(websocket)
+            await broadcast(
+                {
+                    "game_state": game_state,
+                }
+            )
 
-        # Broadcast disconnect message
-        await broadcast(
-            {
-                "client_addresses": get_client_addresses(),
-                "message": f"{client_address} disconnected",
-            }
-        )
+    # Handle disconnect
+    except WebSocketDisconnect:
+        if session_id in session_to_socket:
+            disconnect_player(session_id)
 
 
 # Runs FastAPI server via Uvicorn from command line
