@@ -1,13 +1,21 @@
 import { useState, useEffect, useRef } from 'react'
 
 interface GameState {
+  deck: string[]
+  discard_pile: string[]
   round: number
   status: string // 'waiting', 'playing', 'finished'
 }
 
+interface Player {
+  hand: string[]
+  name: string
+  session_id: string
+}
+
 function App() {
   const [gameState, setGameState] = useState<GameState | undefined>(undefined)
-  const [players, setPlayers] = useState<string[]>([])
+  const [players, setPlayers] = useState<Record<string, Player>>({})
   const [sessionId, setSessionId] = useState('')
   const wsRef = useRef<WebSocket | null>(null)
 
@@ -56,6 +64,12 @@ function App() {
     }
   }
 
+  const handlePlayCard = (card: string) => {
+    if (wsRef.current) {
+      wsRef.current.send(JSON.stringify({ action: 'play_card', card: card }))
+    }
+  }
+
   const renderActionButtons = () => {
     switch (gameState?.status) {
       case 'waiting':
@@ -67,6 +81,31 @@ function App() {
       default:
         return null
     }
+  }
+
+  const renderCardLabel = (card: string) => {
+    let buttonLabel = card
+    let cardValue = card.slice(0, -1)
+    let cardSuit = card[card.length - 1]
+
+    switch (cardSuit) {
+      case 'H':
+        buttonLabel = `${cardValue} ♡`
+        break
+      case 'D':
+        buttonLabel = `${cardValue} ♢`
+        break
+      case 'C':
+        buttonLabel = `${cardValue} ♣`
+        break
+      case 'S':
+        buttonLabel = `${cardValue} ♠`
+        break
+      default:
+        buttonLabel = card
+    }
+
+    return buttonLabel
   }
 
   const renderConnectionStatus = () => {
@@ -84,8 +123,8 @@ function App() {
         <p>{renderConnectionStatus()}</p>
         <p>Players:</p>
         <ul>
-          {players.map((name, index) => (
-            <li key={index}>{name}</li>
+          {Object.entries(players).map(([id, player]) => (
+            <li key={id}>{player.name}</li>
           ))}
         </ul>
         <p>Game state</p>
@@ -101,6 +140,19 @@ function App() {
             </li>
           )}
         </ul>
+        <p>Discard pile:</p>
+        <ol>
+          {gameState?.discard_pile.map((card) => (
+            <li key={card}>{renderCardLabel(card)}</li>
+          ))}
+        </ol>
+        <p>My hand:</p>
+        {players &&
+          players[sessionId]?.hand.map((card) => (
+            <button key={card} onClick={() => handlePlayCard(card)}>
+              {renderCardLabel(card)}
+            </button>
+          ))}
       </pre>
     </>
   )

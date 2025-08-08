@@ -5,6 +5,7 @@ from nanoid import generate
 from pydantic import BaseModel
 from typing import Any, Dict, List
 import json
+import random
 import uvicorn
 
 # Create FastAPI app
@@ -21,15 +22,37 @@ app.add_middleware(
 
 
 class Player(BaseModel):
+    hand: List[str] = []
     name: str
     session_id: str
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "hand": self.hand,
             "name": self.name,
             "session_id": self.session_id,
         }
 
+
+MAX_PLAYERS = 4
+
+# fmt: off
+DECK = [
+    "2H", "3H", "4H", "5H", "6H", "7H", "8H", "9H", "10H", "JH", "QH", "KH", "AH", # Hearts
+    "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "JD", "QD", "KD", "AD", # Diamonds
+    "2C", "3C", "4C", "5C", "6C", "7C", "8C", "9C", "10C", "JC", "QC", "KC", "AC", # Clubs
+    "2S", "3S", "4S", "5S", "6S", "7S", "8S", "9S", "10S", "JS", "QS", "KS", "AS", # Spades
+]
+# fmt: on
+
+# Initiate game state
+game_state: Dict[str, Any] = {
+    "deck": DECK.copy(),
+    "discard_pile": [],
+    "round": 0,
+    "status": "waiting",  # waiting, playing, finished
+    "turn": 0,
+}
 
 # Initiate players
 players: Dict[str, Player] = {}
@@ -37,13 +60,26 @@ players: Dict[str, Player] = {}
 # Initiate session ID to WebSocket map
 session_to_socket: Dict[str, WebSocket] = {}
 
-# Initiate game state
-game_state: Dict[str, Any] = {
-    "round": 0,
-    "status": "waiting",  # waiting, playing, finished
-}
 
-MAX_PLAYERS = 4
+def shuffle_deck():
+    random.shuffle(game_state["deck"])
+
+
+def deal_cards():
+    deck = game_state["deck"]
+    hand_size = 3
+
+    for player in players.values():
+        player.hand = deck[:hand_size]
+        deck[:] = deck[hand_size:]
+
+
+def play_card(session_id: str, card: str):
+    player = players.get(session_id)
+
+    if player and card in player.hand:
+        player.hand.remove(card)
+        game_state["discard_pile"].append(card)
 
 
 async def broadcast(payload: Dict[str, Any]):
@@ -73,8 +109,8 @@ def disconnect_player(session_id: str):
     del session_to_socket[session_id]
 
 
-def get_player_names() -> List[str]:
-    return [player.name for player in players.values()]
+def get_players() -> Dict[str, Player]:
+    return {player.session_id: player.to_dict() for player in players.values()}
 
 
 @app.get("/")
@@ -102,7 +138,7 @@ async def websocket_endpoint(websocket: WebSocket):
             # Broadcast new player
             await broadcast(
                 {
-                    "players": get_player_names(),
+                    "players": get_players(),
                 }
             )
 
@@ -119,7 +155,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.send_json(
         {
             "game_state": game_state,
-            "players": get_player_names(),
+            "players": get_players(),
             "session_id": session_id,
         }
     )
@@ -133,12 +169,21 @@ async def websocket_endpoint(websocket: WebSocket):
             if action == "start_game":
                 game_state["status"] = "playing"
 
+                shuffle_deck()
+                deal_cards()
+
+            elif action == "play_card":
+                card = json.loads(message).get("card")
+
+                play_card(session_id, card)
+
             elif action == "next_round":
                 game_state["round"] += 1
 
             await broadcast(
                 {
                     "game_state": game_state,
+                    "players": get_players(),
                 }
             )
 
