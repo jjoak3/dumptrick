@@ -4,7 +4,7 @@ interface GameState {
   deck: string[]
   discard_pile: string[]
   round: number
-  status: string // 'waiting', 'playing', 'finished'
+  status: string
 }
 
 interface Player {
@@ -17,56 +17,41 @@ function App() {
   const [gameState, setGameState] = useState<GameState | undefined>(undefined)
   const [players, setPlayers] = useState<Record<string, Player>>({})
   const [sessionId, setSessionId] = useState('')
-  const wsRef = useRef<WebSocket | null>(null)
+  const websocketRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    // Get session ID from localStorage
-    let storedSessionId = localStorage.getItem('session_id')
+    const storedSessionId = localStorage.getItem('session_id')
+    const websocketUrl = 'ws://localhost:8000/ws' + (storedSessionId ? `?session_id=${storedSessionId}` : '')
+    const websocket = new WebSocket(websocketUrl)
+    websocketRef.current = websocket
 
-    // Build WebSocket URL
-    // If session ID exists, append as query param
-    const wsUrl = 'ws://localhost:8000/ws' + (storedSessionId ? `?session_id=${storedSessionId}` : '')
-
-    // Connect to FastAPI WebSocket server
-    const ws = new WebSocket(wsUrl)
-
-    // Store WebSocket instance in ref to prevent re-creation on re-renders
-    wsRef.current = ws
-
-    ws.onmessage = (event) => {
+    websocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
-
-        if (data.game_state) {
-          setGameState(data.game_state)
-        }
-
-        if (data.players) {
-          setPlayers(data.players)
-        }
-
-        if (data.session_id) {
-          setSessionId(data.session_id)
-          localStorage.setItem('session_id', data.session_id)
-        }
+        if (data.game_state) setGameState(data.game_state)
+        if (data.players) setPlayers(data.players)
+        if (data.session_id) setSessionId(data.session_id)
       } catch (error) {
-        console.error('Error parsing message:', error)
+        console.error(error)
       }
     }
 
-    // Close WebSocket connection when component unmounts
-    return () => ws.close()
+    return () => websocket.close()
   }, [])
 
+  useEffect(() => {
+    localStorage.setItem('session_id', sessionId)
+  }, [sessionId])
+
   const handleAction = (action: string) => {
-    if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ action }))
+    if (websocketRef.current) {
+      websocketRef.current.send(JSON.stringify({ action }))
     }
   }
 
   const handlePlayCard = (card: string) => {
-    if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ action: 'play_card', card: card }))
+    if (websocketRef.current) {
+      websocketRef.current.send(JSON.stringify({ action: 'play_card', card: card }))
     }
   }
 
@@ -74,8 +59,6 @@ function App() {
     switch (gameState?.status) {
       case 'waiting':
         return <button onClick={() => handleAction('start_game')}>Start game</button>
-      case 'playing':
-        return <button onClick={() => handleAction('next_round')}>Next round</button>
       case 'finished':
         return <button onClick={() => handleAction('restart_game')}>Restart game</button>
       default:
@@ -109,7 +92,7 @@ function App() {
   }
 
   const renderConnectionStatus = () => {
-    if (wsRef.current) {
+    if (websocketRef.current) {
       return `Connected as Player ${sessionId}`
     } else {
       return 'Not connected to WebSocket server'
