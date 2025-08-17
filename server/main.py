@@ -48,7 +48,7 @@ class Player(BaseModel):
         }
 
 
-MAX_PLAYERS = 4
+MAX_PLAYERS = 2
 
 DECK = [
     # fmt: off
@@ -109,6 +109,14 @@ async def websocket_endpoint(websocket: WebSocket):
             if action == "start_game":
                 start_game()
 
+            elif action == "move_card_left":
+                card = json.loads(message).get("card")
+                move_card_left(session_id, card)
+
+            elif action == "move_card_right":
+                card = json.loads(message).get("card")
+                move_card_right(session_id, card)
+
             elif action == "play_card":
                 card = json.loads(message).get("card")
                 play_card(session_id, card)
@@ -145,7 +153,7 @@ def connect_player(session_id: str, websocket: WebSocket):
 
 def deal_cards():
     deck = game_state["deck"]
-    hand_size = 3
+    hand_size = 13
 
     for player in players.values():
         player.hand = deck[:hand_size]
@@ -162,6 +170,30 @@ def generate_session_id() -> str:
 
 def get_players() -> Dict[str, Player]:
     return {player.session_id: player.to_dict() for player in players.values()}
+
+
+def move_card_left(session_id: str, card: str):
+    player = players.get(session_id)
+
+    if player and card in player.hand:
+        current_index = player.hand.index(card)
+        new_index = current_index - 1
+
+        if current_index > 0:
+            player.hand.pop(current_index)
+            player.hand.insert(new_index, card)
+
+
+def move_card_right(session_id: str, card: str):
+    player = players.get(session_id)
+
+    if player and card in player.hand:
+        current_index = player.hand.index(card)
+        new_index = current_index + 1
+
+        if current_index < len(player.hand) - 1:
+            player.hand.pop(current_index)
+            player.hand.insert(new_index, card)
 
 
 def play_card(session_id: str, card: str):

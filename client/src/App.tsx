@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import './App.css'
 
 interface GameState {
   deck: string[]
@@ -43,15 +44,9 @@ function App() {
     localStorage.setItem('session_id', sessionId)
   }, [sessionId])
 
-  const handleAction = (action: string) => {
+  const handleAction = (action: string, card?: string) => {
     if (websocketRef.current) {
-      websocketRef.current.send(JSON.stringify({ action }))
-    }
-  }
-
-  const handlePlayCard = (card: string) => {
-    if (websocketRef.current) {
-      websocketRef.current.send(JSON.stringify({ action: 'play_card', card: card }))
+      websocketRef.current.send(JSON.stringify({ action, card }))
     }
   }
 
@@ -64,31 +59,6 @@ function App() {
       default:
         return null
     }
-  }
-
-  const renderCardLabel = (card: string) => {
-    let buttonLabel = card
-    let cardValue = card.slice(0, -1)
-    let cardSuit = card[card.length - 1]
-
-    switch (cardSuit) {
-      case 'H':
-        buttonLabel = `${cardValue} ♡`
-        break
-      case 'D':
-        buttonLabel = `${cardValue} ♢`
-        break
-      case 'C':
-        buttonLabel = `${cardValue} ♣`
-        break
-      case 'S':
-        buttonLabel = `${cardValue} ♠`
-        break
-      default:
-        buttonLabel = card
-    }
-
-    return buttonLabel
   }
 
   const renderConnectionStatus = () => {
@@ -126,19 +96,129 @@ function App() {
         <p>Discard pile:</p>
         <ol>
           {gameState?.discard_pile.map((card) => (
-            <li key={card}>{renderCardLabel(card)}</li>
+            <li key={card}>{card}</li>
           ))}
         </ol>
         <p>My hand:</p>
-        {players &&
-          players[sessionId]?.hand.map((card) => (
-            <button key={card} onClick={() => handlePlayCard(card)}>
-              {renderCardLabel(card)}
-            </button>
-          ))}
+        {players && players[sessionId] && (
+          <Hand //
+            handleAction={handleAction}
+            player={players[sessionId]}
+          />
+        )}
       </pre>
     </>
   )
 }
 
 export default App
+
+interface HandProps {
+  handleAction: (action: string, card: string) => void
+  player: Player
+}
+
+function Hand({ handleAction, player }: HandProps) {
+  const [selectedCard, setSelectedCard] = useState<string>('')
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!selectedCard) return
+
+      switch (event.key) {
+        case 'ArrowLeft':
+          if (event.metaKey) {
+            event.preventDefault()
+            handleAction('move_card_left', selectedCard)
+          }
+          break
+        case 'ArrowRight':
+          if (event.metaKey) {
+            event.preventDefault()
+            handleAction('move_card_right', selectedCard)
+          }
+          break
+        case 'Enter':
+          handleAction('play_card', selectedCard)
+          break
+        case 'Escape':
+          setSelectedCard('')
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleAction, selectedCard])
+
+  return (
+    <>
+      <div className='hand'>
+        {player.hand.map((card) => (
+          <Card //
+            card={card}
+            key={card}
+            isSelected={selectedCard === card}
+            onBlur={() => setSelectedCard('')}
+            onChange={() => setSelectedCard(card)}
+            onFocus={() => setSelectedCard(card)}
+          />
+        ))}
+      </div>
+    </>
+  )
+}
+
+interface CardProps {
+  card: string
+  isSelected: boolean
+  onBlur?: () => void
+  onChange?: () => void
+  onFocus?: () => void
+}
+
+function Card({ card, isSelected, onBlur, onChange, onFocus }: CardProps) {
+  const renderCardLabel = (card: string) => {
+    let cardValue = card.slice(0, -1)
+    let cardSuit = card[card.length - 1]
+
+    switch (cardSuit) {
+      case 'H':
+        cardSuit = '♥️'
+        break
+      case 'D':
+        cardSuit = '♦️'
+        break
+      case 'C':
+        cardSuit = '♣️'
+        break
+      case 'S':
+        cardSuit = '♠️'
+        break
+      default:
+    }
+
+    return (
+      <>
+        <span>{cardValue}</span>
+        <span>{cardSuit}</span>
+      </>
+    )
+  }
+
+  return (
+    <label className='card' htmlFor={card}>
+      <input //
+        type='radio'
+        checked={isSelected}
+        id={card}
+        name='hand'
+        onBlur={onBlur}
+        onChange={onChange}
+        onFocus={onFocus}
+        value={card}
+      />
+      {renderCardLabel(card)}
+    </label>
+  )
+}
