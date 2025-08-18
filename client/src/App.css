@@ -1,3 +1,16 @@
+:root {
+  --backgroundColor-card: #fff;
+  --backgroundColor-default: #fff;
+  --backgroundColor-inset: #eee;
+  --backgroundColor-backPattern: repeating-radial-gradient(circle at center, #aaa 0, #fff 8px);
+  --borderColor-card: #aaa;
+  --borderColor-focus: #000;
+  --borderRadius-card: 4px;
+  --borderWidth-card: 1px;
+  --height-card: 56px;
+  --width-card: 40px;
+}
+
 @keyframes wiggle {
   0%,
   100% {
@@ -8,31 +21,65 @@
   }
 }
 
-.card {
-  align-items: center;
-  background-color: #fff;
-  border: 1px solid #bbb;
-  border-radius: 4px;
-  display: flex;
-  gap: 2px;
-  height: 56px;
-  justify-content: center;
-  user-select: none;
-  width: 40px;
+* {
+  box-sizing: border-box;
 }
 
-.card input[type='radio'] {
+.board,
+.hand {
+  display: flex;
+  gap: 4px;
+}
+
+.card {
+  align-items: center;
+  background-color: var(--backgroundColor-card);
+  border: var(--borderWidth-card) solid var(--borderColor-card);
+  border-radius: var(--borderRadius-card);
+  display: flex;
+  gap: 2px;
+  height: var(--height-card);
+  justify-content: center;
+  user-select: none;
+  width: var(--width-card);
+}
+
+.card:focus,
+.card:has(input:checked),
+.card:not(div):hover {
+  animation: wiggle 2s ease-in-out infinite;
+  z-index: 1;
+}
+
+.card:focus,
+.card:has(input:checked) {
+  border-color: var(--borderColor-focus);
+  outline: var(--borderWidth-card) solid var(--borderColor-focus);
+}
+
+.card.back {
+  background-image: var(--backgroundColor-backPattern);
+  box-shadow: inset 0 0 0 2px var(--backgroundColor-card);
+}
+
+.card input {
   opacity: 0;
   pointer-events: none;
   position: absolute;
 }
 
-.card:has(input[type='radio']:checked) {
-  animation: wiggle 2s ease-in-out infinite;
-  border-color: #000;
+.deck,
+.discard-pile {
+  background-color: var(--backgroundColor-inset);
+  border-radius: var(--borderRadius-card);
+  height: var(--height-card);
+  position: relative;
+  width: var(--width-card);
 }
 
-.hand {
-  display: flex;
-  gap: 4px;
+.deck > .card,
+.discard-pile > .card {
+  left: 0;
+  position: absolute;
+  top: 0;
 }

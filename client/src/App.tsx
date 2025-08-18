@@ -93,12 +93,11 @@ function App() {
             </li>
           )}
         </ul>
-        <p>Discard pile:</p>
-        <ol>
-          {gameState?.discard_pile.map((card) => (
-            <li key={card}>{card}</li>
-          ))}
-        </ol>
+        <p>Board:</p>
+        <div className='board'>
+          {gameState && <Deck gameState={gameState} handleAction={handleAction} />}
+          {gameState && <DiscardPile gameState={gameState} handleAction={handleAction} />}
+        </div>
         <p>My hand:</p>
         {players && players[sessionId] && (
           <Hand //
@@ -112,6 +111,94 @@ function App() {
 }
 
 export default App
+
+const renderCardLabel = (card: string) => {
+  let cardValue = card.slice(0, -1)
+  let cardSuit = card[card.length - 1]
+
+  switch (cardSuit) {
+    case 'H':
+      cardSuit = '♥️'
+      break
+    case 'D':
+      cardSuit = '♦️'
+      break
+    case 'C':
+      cardSuit = '♣️'
+      break
+    case 'S':
+      cardSuit = '♠️'
+      break
+    default:
+  }
+
+  return (
+    <>
+      <span>{cardValue}</span>
+      <span>{cardSuit}</span>
+    </>
+  )
+}
+
+interface Deck {
+  gameState: GameState
+  handleAction: (action: string, card?: string) => void
+}
+
+function Deck({ gameState, handleAction }: Deck) {
+  return (
+    <div className='deck'>
+      {gameState.deck.map((card, index) =>
+        index == gameState.deck.length - 1 ? (
+          <button //
+            className='card back'
+            key={index}
+            onClick={() => handleAction('draw_deck', card)}
+            style={{ top: `-${index * 0.25}px` }}
+          ></button>
+        ) : (
+          <div //
+            className='card back'
+            key={index}
+            style={{ top: `-${index * 0.25}px` }}
+          ></div>
+        )
+      )}
+    </div>
+  )
+}
+
+interface DiscardPile {
+  gameState: GameState
+  handleAction: (action: string, card?: string) => void
+}
+
+function DiscardPile({ gameState, handleAction }: DiscardPile) {
+  return (
+    <div className='discard-pile'>
+      {gameState.discard_pile.map((card, index) =>
+        index == gameState.discard_pile.length - 1 ? (
+          <button //
+            className='card'
+            key={card}
+            onClick={() => handleAction('draw_discard', card)}
+            style={{ top: `-${index * 0.25}px` }}
+          >
+            {renderCardLabel(card)}
+          </button>
+        ) : (
+          <div //
+            className='card'
+            key={index}
+            style={{ top: `-${index * 0.25}px` }}
+          >
+            {renderCardLabel(card)}
+          </div>
+        )
+      )}
+    </div>
+  )
+}
 
 interface HandProps {
   handleAction: (action: string, card: string) => void
@@ -178,34 +265,6 @@ interface CardProps {
 }
 
 function Card({ card, isSelected, onBlur, onChange, onFocus }: CardProps) {
-  const renderCardLabel = (card: string) => {
-    let cardValue = card.slice(0, -1)
-    let cardSuit = card[card.length - 1]
-
-    switch (cardSuit) {
-      case 'H':
-        cardSuit = '♥️'
-        break
-      case 'D':
-        cardSuit = '♦️'
-        break
-      case 'C':
-        cardSuit = '♣️'
-        break
-      case 'S':
-        cardSuit = '♠️'
-        break
-      default:
-    }
-
-    return (
-      <>
-        <span>{cardValue}</span>
-        <span>{cardSuit}</span>
-      </>
-    )
-  }
-
   return (
     <label className='card' htmlFor={card}>
       <input //

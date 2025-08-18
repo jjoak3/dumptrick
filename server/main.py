@@ -105,20 +105,24 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             message = await websocket.receive_text()
             action = json.loads(message).get("action")
+            card = json.loads(message).get("card")
 
             if action == "start_game":
                 start_game()
 
+            elif action == "draw_deck":
+                draw_deck(session_id, card)
+
+            elif action == "draw_discard":
+                draw_discard(session_id, card)
+
             elif action == "move_card_left":
-                card = json.loads(message).get("card")
                 move_card_left(session_id, card)
 
             elif action == "move_card_right":
-                card = json.loads(message).get("card")
                 move_card_right(session_id, card)
 
             elif action == "play_card":
-                card = json.loads(message).get("card")
                 play_card(session_id, card)
 
             await broadcast(
@@ -162,6 +166,24 @@ def deal_cards():
 
 def disconnect_player(session_id: str):
     del session_to_socket[session_id]
+
+
+def draw_deck(session_id: str, card: str):
+    player = players.get(session_id)
+    deck = game_state["deck"]
+
+    if player and card in deck:
+        deck.remove(card)
+        player.hand.append(card)
+
+
+def draw_discard(session_id: str, card: str):
+    player = players.get(session_id)
+    discard_pile = game_state["discard_pile"]
+
+    if player and card in discard_pile:
+        discard_pile.remove(card)
+        player.hand.append(card)
 
 
 def generate_session_id() -> str:
