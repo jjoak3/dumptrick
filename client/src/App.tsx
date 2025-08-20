@@ -6,6 +6,10 @@ interface GameState {
   discard_pile: string[]
   round: number
   status: string
+  turn_index: number
+  turn_order: string[]
+  turn_player: string
+  turn_phase: string
 }
 
 interface Player {
@@ -86,6 +90,8 @@ function App() {
             <>
               <li>round: {gameState.round}</li>
               <li>status: {gameState.status}</li>
+              <li>turn: Player {gameState.turn_player}</li>
+              <li>turn phase: {gameState.turn_phase}</li>
             </>
           ) : (
             <li>
@@ -95,14 +101,28 @@ function App() {
         </ul>
         <p>Board:</p>
         <div className='board'>
-          {gameState && <Deck gameState={gameState} handleAction={handleAction} />}
-          {gameState && <DiscardPile gameState={gameState} handleAction={handleAction} />}
+          {gameState && (
+            <Deck //
+              gameState={gameState}
+              handleAction={handleAction}
+              sessionId={sessionId}
+            />
+          )}
+          {gameState && (
+            <DiscardPile //
+              gameState={gameState}
+              handleAction={handleAction}
+              sessionId={sessionId}
+            />
+          )}
         </div>
         <p>My hand:</p>
-        {players && players[sessionId] && (
+        {gameState && players && players[sessionId] && (
           <Hand //
+            gameState={gameState}
             handleAction={handleAction}
             player={players[sessionId]}
+            sessionId={sessionId}
           />
         )}
       </pre>
@@ -143,12 +163,16 @@ const renderCardLabel = (card: string) => {
 interface Deck {
   gameState: GameState
   handleAction: (action: string, card?: string) => void
+  sessionId: string
 }
 
-function Deck({ gameState, handleAction }: Deck) {
-  return (
-    <div className='deck'>
-      {gameState.deck.map((card, index) =>
+function Deck({ gameState, handleAction, sessionId }: Deck) {
+  const renderDeck = () => {
+    if (
+      gameState.turn_player == sessionId && //
+      gameState.turn_phase == 'DRAW'
+    ) {
+      return gameState.deck.map((card, index) =>
         index == gameState.deck.length - 1 ? (
           <button //
             className='card back'
@@ -163,20 +187,34 @@ function Deck({ gameState, handleAction }: Deck) {
             style={{ top: `-${index * 0.25}px` }}
           ></div>
         )
-      )}
-    </div>
-  )
+      )
+    } else {
+      return gameState.deck.map((card, index) => (
+        <div //
+          className='card back'
+          key={index}
+          style={{ top: `-${index * 0.25}px` }}
+        ></div>
+      ))
+    }
+  }
+
+  return <div className='deck'>{renderDeck()}</div>
 }
 
 interface DiscardPile {
   gameState: GameState
   handleAction: (action: string, card?: string) => void
+  sessionId: string
 }
 
-function DiscardPile({ gameState, handleAction }: DiscardPile) {
-  return (
-    <div className='discard-pile'>
-      {gameState.discard_pile.map((card, index) =>
+function DiscardPile({ gameState, handleAction, sessionId }: DiscardPile) {
+  const renderDiscardPile = () => {
+    if (
+      gameState.turn_player == sessionId && //
+      gameState.turn_phase == 'DRAW'
+    ) {
+      return gameState.discard_pile.map((card, index) =>
         index == gameState.discard_pile.length - 1 ? (
           <button //
             className='card'
@@ -195,17 +233,31 @@ function DiscardPile({ gameState, handleAction }: DiscardPile) {
             {renderCardLabel(card)}
           </div>
         )
-      )}
-    </div>
-  )
+      )
+    } else {
+      return gameState.discard_pile.map((card, index) => (
+        <div //
+          className='card'
+          key={index}
+          style={{ top: `-${index * 0.25}px` }}
+        >
+          {renderCardLabel(card)}
+        </div>
+      ))
+    }
+  }
+
+  return <div className='discard-pile'>{renderDiscardPile()}</div>
 }
 
 interface HandProps {
+  gameState: GameState
   handleAction: (action: string, card: string) => void
   player: Player
+  sessionId: string
 }
 
-function Hand({ handleAction, player }: HandProps) {
+function Hand({ gameState, handleAction, player, sessionId }: HandProps) {
   const [selectedCard, setSelectedCard] = useState<string>('')
 
   useEffect(() => {
@@ -226,7 +278,12 @@ function Hand({ handleAction, player }: HandProps) {
           }
           break
         case 'Enter':
-          handleAction('play_card', selectedCard)
+          if (
+            gameState.turn_player == sessionId && //
+            gameState.turn_phase == 'DISCARD'
+          ) {
+            handleAction('discard_card', selectedCard)
+          }
           break
         case 'Escape':
           setSelectedCard('')

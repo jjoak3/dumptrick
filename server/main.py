@@ -1,3 +1,4 @@
+from enum import auto, Enum
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from logging import error
@@ -18,12 +19,37 @@ app.add_middleware(
 )
 
 
+class TurnPhase(Enum):
+    DRAW = auto()
+    DISCARD = auto()
+
+
 class GameState(BaseModel):
     deck: List[str] = []
     discard_pile: List[str] = []
     round: int
     status: str
-    turn: int
+    turn_index: int = 0
+    turn_order: List[str] = []
+    turn_player: str = ""
+    turn_phase: TurnPhase = TurnPhase.DRAW
+
+    def advance_phase(self):
+        if self.turn_phase is TurnPhase.DRAW:
+            self.turn_phase = TurnPhase.DISCARD
+        else:
+            self.turn_phase = TurnPhase.DRAW
+
+    def advance_turn(self):
+        self.turn_index += 1
+        if self.turn_index >= len(self.turn_order):
+            self.turn_index = 0
+
+    def get_turn_player(self) -> str:
+        if self.turn_order:
+            return self.turn_order[self.turn_index]
+        else:
+            return ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -31,7 +57,10 @@ class GameState(BaseModel):
             "discard_pile": self.discard_pile,
             "round": self.round,
             "status": self.status,
-            "turn": self.turn,
+            "turn_index": self.turn_index,
+            "turn_order": self.turn_order,
+            "turn_player": self.get_turn_player(),
+            "turn_phase": self.turn_phase.name,
         }
 
 
@@ -59,13 +88,16 @@ DECK = [
     # fmt: on
 ]
 
-game_state: GameState = {
-    "deck": DECK.copy(),
-    "discard_pile": [],
-    "round": 0,
-    "status": "waiting",
-    "turn": 0,
-}
+game_state = GameState(
+    deck=DECK.copy(),
+    discard_pile=[],
+    round=0,
+    status="waiting",
+    turn_index=0,
+    turn_order=[],
+    turn_player="",
+    turn_phase=TurnPhase.DRAW,
+)
 
 players: Dict[str, Player] = {}
 session_to_socket: Dict[str, WebSocket] = {}
@@ -95,7 +127,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     await websocket.send_json(
         {
-            "game_state": game_state,
+            "game_state": game_state.to_dict(),
             "players": get_players(),
             "session_id": session_id,
         }
@@ -112,9 +144,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
             elif action == "draw_deck":
                 draw_deck(session_id, card)
+                game_state.advance_phase()
 
             elif action == "draw_discard":
                 draw_discard(session_id, card)
+                game_state.advance_phase()
 
             elif action == "move_card_left":
                 move_card_left(session_id, card)
@@ -122,12 +156,14 @@ async def websocket_endpoint(websocket: WebSocket):
             elif action == "move_card_right":
                 move_card_right(session_id, card)
 
-            elif action == "play_card":
-                play_card(session_id, card)
+            elif action == "discard_card":
+                discard_card(session_id, card)
+                game_state.advance_phase()
+                game_state.advance_turn()
 
             await broadcast(
                 {
-                    "game_state": game_state,
+                    "game_state": game_state.to_dict(),
                     "players": get_players(),
                 }
             )
@@ -156,7 +192,7 @@ def connect_player(session_id: str, websocket: WebSocket):
 
 
 def deal_cards():
-    deck = game_state["deck"]
+    deck = game_state.deck
     hand_size = 13
 
     for player in players.values():
@@ -170,7 +206,7 @@ def disconnect_player(session_id: str):
 
 def draw_deck(session_id: str, card: str):
     player = players.get(session_id)
-    deck = game_state["deck"]
+    deck = game_state.deck
 
     if player and card in deck:
         deck.remove(card)
@@ -179,7 +215,7 @@ def draw_deck(session_id: str, card: str):
 
 def draw_discard(session_id: str, card: str):
     player = players.get(session_id)
-    discard_pile = game_state["discard_pile"]
+    discard_pile = game_state.discard_pile
 
     if player and card in discard_pile:
         discard_pile.remove(card)
@@ -218,20 +254,26 @@ def move_card_right(session_id: str, card: str):
             player.hand.insert(new_index, card)
 
 
-def play_card(session_id: str, card: str):
+def discard_card(session_id: str, card: str):
     player = players.get(session_id)
 
     if player and card in player.hand:
         player.hand.remove(card)
-        game_state["discard_pile"].append(card)
+        game_state.discard_pile.append(card)
+
+
+def set_turn_order():
+    for session_id in players:
+        game_state.turn_order.append(session_id)
 
 
 def shuffle_deck():
-    random.shuffle(game_state["deck"])
+    random.shuffle(game_state.deck)
 
 
 def start_game():
-    game_state["status"] = "playing"
+    game_state.status = "playing"
+    set_turn_order()
     shuffle_deck()
     deal_cards()
 
