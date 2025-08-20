@@ -4,12 +4,11 @@ import './App.css'
 interface GameState {
   deck: string[]
   discard_pile: string[]
+  game_phase: string
   round: number
-  status: string
   turn_index: number
   turn_order: string[]
   turn_player: string
-  turn_phase: string
 }
 
 interface Player {
@@ -54,17 +53,6 @@ function App() {
     }
   }
 
-  const renderActionButtons = () => {
-    switch (gameState?.status) {
-      case 'waiting':
-        return <button onClick={() => handleAction('start_game')}>Start game</button>
-      case 'finished':
-        return <button onClick={() => handleAction('restart_game')}>Restart game</button>
-      default:
-        return null
-    }
-  }
-
   const renderConnectionStatus = () => {
     if (websocketRef.current) {
       return `Connected as Player ${sessionId}`
@@ -73,56 +61,47 @@ function App() {
     }
   }
 
+  const renderStartButton = () => {
+    switch (gameState?.game_phase) {
+      case 'WAITING':
+        return <button onClick={() => handleAction('start_game')}>Start game</button>
+      default:
+        return null
+    }
+  }
+
   return (
     <>
-      {renderActionButtons()}
       <pre>
+        {renderStartButton()}
         <p>{renderConnectionStatus()}</p>
         <p>Players:</p>
-        <ul>
-          {Object.entries(players).map(([id, player]) => (
-            <li key={id}>{player.name}</li>
-          ))}
-        </ul>
-        <p>Game state</p>
-        <ul>
-          {gameState ? (
-            <>
-              <li>round: {gameState.round}</li>
-              <li>status: {gameState.status}</li>
-              <li>turn: Player {gameState.turn_player}</li>
-              <li>turn phase: {gameState.turn_phase}</li>
-            </>
-          ) : (
-            <li>
-              <i>No game state</i>
-            </li>
-          )}
-        </ul>
-        <p>Board:</p>
-        <div className='board'>
-          {gameState && (
-            <Deck //
-              gameState={gameState}
-              handleAction={handleAction}
-              sessionId={sessionId}
-            />
-          )}
-          {gameState && (
-            <DiscardPile //
-              gameState={gameState}
-              handleAction={handleAction}
-              sessionId={sessionId}
-            />
-          )}
-        </div>
+        {players && (
+          <ul>
+            {Object.entries(players).map(([id, player]) => (
+              <li key={id}>{player.name}</li>
+            ))}
+          </ul>
+        )}
+        <p>Game state:</p>
+        {gameState && (
+          <ul>
+            <li>game_phase: {gameState.game_phase}</li>
+            <li>turn: Player {gameState.turn_player}</li>
+          </ul>
+        )}
+        <p>Discard pile:</p>
+        {gameState && (
+          <DiscardPile //
+            gameState={gameState}
+          />
+        )}
         <p>My hand:</p>
         {gameState && players && players[sessionId] && (
           <Hand //
             gameState={gameState}
             handleAction={handleAction}
             player={players[sessionId]}
-            sessionId={sessionId}
           />
         )}
       </pre>
@@ -132,209 +111,92 @@ function App() {
 
 export default App
 
-const renderCardLabel = (card: string) => {
-  let cardValue = card.slice(0, -1)
-  let cardSuit = card[card.length - 1]
-
-  switch (cardSuit) {
-    case 'H':
-      cardSuit = '♥️'
-      break
-    case 'D':
-      cardSuit = '♦️'
-      break
-    case 'C':
-      cardSuit = '♣️'
-      break
-    case 'S':
-      cardSuit = '♠️'
-      break
-    default:
-  }
-
-  return (
-    <>
-      <span>{cardValue}</span>
-      <span>{cardSuit}</span>
-    </>
-  )
-}
-
-interface Deck {
-  gameState: GameState
-  handleAction: (action: string, card?: string) => void
-  sessionId: string
-}
-
-function Deck({ gameState, handleAction, sessionId }: Deck) {
-  const renderDeck = () => {
-    if (
-      gameState.turn_player == sessionId && //
-      gameState.turn_phase == 'DRAW'
-    ) {
-      return gameState.deck.map((card, index) =>
-        index == gameState.deck.length - 1 ? (
-          <button //
-            className='card back'
-            key={index}
-            onClick={() => handleAction('draw_deck', card)}
-            style={{ top: `-${index * 0.25}px` }}
-          ></button>
-        ) : (
-          <div //
-            className='card back'
-            key={index}
-            style={{ top: `-${index * 0.25}px` }}
-          ></div>
-        )
-      )
-    } else {
-      return gameState.deck.map((card, index) => (
-        <div //
-          className='card back'
-          key={index}
-          style={{ top: `-${index * 0.25}px` }}
-        ></div>
-      ))
-    }
-  }
-
-  return <div className='deck'>{renderDeck()}</div>
-}
-
 interface DiscardPile {
   gameState: GameState
-  handleAction: (action: string, card?: string) => void
-  sessionId: string
 }
 
-function DiscardPile({ gameState, handleAction, sessionId }: DiscardPile) {
-  const renderDiscardPile = () => {
-    if (
-      gameState.turn_player == sessionId && //
-      gameState.turn_phase == 'DRAW'
-    ) {
-      return gameState.discard_pile.map((card, index) =>
-        index == gameState.discard_pile.length - 1 ? (
-          <button //
-            className='card'
-            key={card}
-            onClick={() => handleAction('draw_discard', card)}
-            style={{ top: `-${index * 0.25}px` }}
-          >
-            {renderCardLabel(card)}
-          </button>
-        ) : (
-          <div //
-            className='card'
-            key={index}
-            style={{ top: `-${index * 0.25}px` }}
-          >
-            {renderCardLabel(card)}
-          </div>
-        )
-      )
-    } else {
-      return gameState.discard_pile.map((card, index) => (
-        <div //
-          className='card'
-          key={index}
-          style={{ top: `-${index * 0.25}px` }}
-        >
-          {renderCardLabel(card)}
-        </div>
-      ))
-    }
-  }
-
-  return <div className='discard-pile'>{renderDiscardPile()}</div>
+function DiscardPile({ gameState }: DiscardPile) {
+  return (
+    <div className='discard-pile'>
+      {gameState.discard_pile.map((card, index) => (
+        <Card //
+          card={card}
+          key={card}
+          style={{ top: `-${index * 0.5}px` }}
+        />
+      ))}
+    </div>
+  )
 }
 
 interface HandProps {
   gameState: GameState
-  handleAction: (action: string, card: string) => void
+  handleAction: (action: string, card?: string) => void
   player: Player
-  sessionId: string
 }
 
-function Hand({ gameState, handleAction, player, sessionId }: HandProps) {
-  const [selectedCard, setSelectedCard] = useState<string>('')
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!selectedCard) return
-
-      switch (event.key) {
-        case 'ArrowLeft':
-          if (event.metaKey) {
-            event.preventDefault()
-            handleAction('move_card_left', selectedCard)
-          }
-          break
-        case 'ArrowRight':
-          if (event.metaKey) {
-            event.preventDefault()
-            handleAction('move_card_right', selectedCard)
-          }
-          break
-        case 'Enter':
-          if (
-            gameState.turn_player == sessionId && //
-            gameState.turn_phase == 'DISCARD'
-          ) {
-            handleAction('discard_card', selectedCard)
-          }
-          break
-        case 'Escape':
-          setSelectedCard('')
-          break
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleAction, selectedCard])
-
+function Hand({ gameState, handleAction, player }: HandProps) {
   return (
-    <>
-      <div className='hand'>
-        {player.hand.map((card) => (
-          <Card //
-            card={card}
-            key={card}
-            isSelected={selectedCard === card}
-            onBlur={() => setSelectedCard('')}
-            onChange={() => setSelectedCard(card)}
-            onFocus={() => setSelectedCard(card)}
-          />
-        ))}
-      </div>
-    </>
+    <div className='hand'>
+      {player.hand.map((card) => (
+        <Card //
+          card={card}
+          disabled={gameState.turn_player != player.session_id}
+          key={card}
+          onClick={() => {
+            if (gameState.turn_player == player.session_id) {
+              handleAction('play_card', card)
+            }
+          }}
+        />
+      ))}
+    </div>
   )
 }
 
-interface CardProps {
+interface Card {
   card: string
-  isSelected: boolean
-  onBlur?: () => void
-  onChange?: () => void
-  onFocus?: () => void
+  disabled?: boolean
+  onClick?: () => void
+  style?: React.CSSProperties
 }
 
-function Card({ card, isSelected, onBlur, onChange, onFocus }: CardProps) {
-  return (
-    <label className='card' htmlFor={card}>
-      <input //
-        type='radio'
-        checked={isSelected}
-        id={card}
-        name='hand'
-        onBlur={onBlur}
-        onChange={onChange}
-        onFocus={onFocus}
-        value={card}
-      />
+function Card({ card, disabled, onClick, style }: Card) {
+  const renderCardLabel = (card: string) => {
+    let cardValue = card.slice(0, -1)
+    let cardSuit = card[card.length - 1]
+
+    switch (cardSuit) {
+      case 'H':
+        cardSuit = '♥️'
+        break
+      case 'D':
+        cardSuit = '♦️'
+        break
+      case 'C':
+        cardSuit = '♣️'
+        break
+      case 'S':
+        cardSuit = '♠️'
+        break
+      default:
+    }
+
+    return (
+      <>
+        <span>{cardValue}</span>
+        <span>{cardSuit}</span>
+      </>
+    )
+  }
+
+  return onClick ? (
+    <button disabled={disabled} onClick={onClick} style={style}>
+      <div className='card'>{renderCardLabel(card)}</div>
+    </button>
+  ) : (
+    <div className='card' style={style}>
       {renderCardLabel(card)}
-    </label>
+    </div>
   )
 }

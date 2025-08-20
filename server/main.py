@@ -19,26 +19,19 @@ app.add_middleware(
 )
 
 
-class TurnPhase(Enum):
-    DRAW = auto()
-    DISCARD = auto()
+class GamePhase(Enum):
+    WAITING = auto()
+    PLAYING = auto()
 
 
 class GameState(BaseModel):
     deck: List[str] = []
     discard_pile: List[str] = []
+    game_phase: GamePhase = GamePhase.WAITING
     round: int
-    status: str
     turn_index: int = 0
     turn_order: List[str] = []
     turn_player: str = ""
-    turn_phase: TurnPhase = TurnPhase.DRAW
-
-    def advance_phase(self):
-        if self.turn_phase is TurnPhase.DRAW:
-            self.turn_phase = TurnPhase.DISCARD
-        else:
-            self.turn_phase = TurnPhase.DRAW
 
     def advance_turn(self):
         self.turn_index += 1
@@ -55,12 +48,11 @@ class GameState(BaseModel):
         return {
             "deck": self.deck,
             "discard_pile": self.discard_pile,
+            "game_phase": self.game_phase.name,
             "round": self.round,
-            "status": self.status,
             "turn_index": self.turn_index,
             "turn_order": self.turn_order,
             "turn_player": self.get_turn_player(),
-            "turn_phase": self.turn_phase.name,
         }
 
 
@@ -91,12 +83,11 @@ DECK = [
 game_state = GameState(
     deck=DECK.copy(),
     discard_pile=[],
+    game_phase=GamePhase.WAITING,
     round=0,
-    status="waiting",
     turn_index=0,
     turn_order=[],
     turn_player="",
-    turn_phase=TurnPhase.DRAW,
 )
 
 players: Dict[str, Player] = {}
@@ -142,23 +133,8 @@ async def websocket_endpoint(websocket: WebSocket):
             if action == "start_game":
                 start_game()
 
-            elif action == "draw_deck":
-                draw_deck(session_id, card)
-                game_state.advance_phase()
-
-            elif action == "draw_discard":
-                draw_discard(session_id, card)
-                game_state.advance_phase()
-
-            elif action == "move_card_left":
-                move_card_left(session_id, card)
-
-            elif action == "move_card_right":
-                move_card_right(session_id, card)
-
-            elif action == "discard_card":
-                discard_card(session_id, card)
-                game_state.advance_phase()
+            elif action == "play_card":
+                play_card(session_id, card)
                 game_state.advance_turn()
 
             await broadcast(
@@ -254,7 +230,7 @@ def move_card_right(session_id: str, card: str):
             player.hand.insert(new_index, card)
 
 
-def discard_card(session_id: str, card: str):
+def play_card(session_id: str, card: str):
     player = players.get(session_id)
 
     if player and card in player.hand:
@@ -272,7 +248,7 @@ def shuffle_deck():
 
 
 def start_game():
-    game_state.status = "playing"
+    game_state.game_phase = GamePhase.PLAYING
     set_turn_order()
     shuffle_deck()
     deal_cards()
