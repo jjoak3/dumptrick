@@ -34,7 +34,7 @@ function App() {
 
   useEffect(() => {
     const storedSessionId = localStorage.getItem('session_id')
-    const websocketUrl = 'ws://localhost:8000/ws' + (storedSessionId ? `?session_id=${storedSessionId}` : '')
+    const websocketUrl = `ws://${import.meta.env.VITE_HOST_SERVER}:8000/ws` + (storedSessionId ? `?session_id=${storedSessionId}` : '')
     const websocket = new WebSocket(websocketUrl)
     websocketRef.current = websocket
 
