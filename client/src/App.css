@@ -110,7 +110,6 @@ button:focus > .card {
 .discard-pile,
 .trick {
   display: flex;
-  gap: 4px;
   height: var(--height-card);
   position: relative;
   width: var(--width-card);
@@ -122,6 +121,16 @@ button:focus > .card {
   left: 0;
   position: absolute;
   top: 0;
+}
+
+.discard-pile:is(:focus, :hover) > .card,
+.trick:is(:focus, :hover) > .card {
+  margin-left: -8px;
+}
+
+.discard-pile:is(:focus, :hover) > .card:first-child,
+.trick:is(:focus, :hover) > .card:first-child {
+  margin-left: 0;
 }
 
 .discard-pile > .card:nth-child(odd),
