@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
+interface Trick {
+  cards: string[]
+  leading_suit: string
+  winning_card: string
+  winning_player: string
+}
+
 interface GameState {
+  current_trick: Trick
   deck: string[]
   discard_pile: string[]
   game_phase: string
@@ -15,6 +23,7 @@ interface Player {
   hand: string[]
   name: string
   session_id: string
+  tricks: Trick[]
 }
 
 function App() {
@@ -104,12 +113,40 @@ function App() {
             player={players[sessionId]}
           />
         )}
+        <p>My tricks:</p>
+        {gameState && players && players[sessionId] && (
+          <Tricks //
+            tricks={players[sessionId].tricks}
+          />
+        )}
       </pre>
     </>
   )
 }
 
 export default App
+
+interface TricksProps {
+  tricks: Trick[]
+}
+
+function Tricks({ tricks }: TricksProps) {
+  return (
+    <div className='tricks'>
+      {tricks.map((trick, index) => (
+        <div className='trick' key={index}>
+          {trick.cards.map((card, cardIndex) => (
+            <Card //
+              card={card}
+              key={cardIndex}
+              style={{ top: `-${index * 0.5}px` }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 interface DiscardPile {
   gameState: GameState

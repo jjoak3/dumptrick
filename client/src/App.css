@@ -75,13 +75,34 @@ button:focus > .card {
 .discard-pile {
   background-color: var(--backgroundColor-inset);
   border-radius: var(--borderRadius-card);
+}
+
+.discard-pile,
+.trick {
   height: var(--height-card);
   position: relative;
   width: var(--width-card);
 }
 
-.discard-pile > .card {
+.discard-pile > .card,
+.trick > .card {
   left: 0;
   position: absolute;
   top: 0;
+}
+
+.discard-pile > .card:nth-child(odd),
+.trick > .card:nth-child(odd) {
+  transform: rotate(5.625deg);
+}
+
+.discard-pile > .card:nth-child(even),
+.trick > .card:nth-child(even) {
+  transform: rotate(-5.625deg);
+}
+
+.tricks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
