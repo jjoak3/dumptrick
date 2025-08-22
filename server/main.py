@@ -69,12 +69,15 @@ class GameState(BaseModel):
     turn_index: int = 0
     turn_order: List[str] = []
     turn_player: str = ""
+    turn_start_index: int = 0
 
     def advance_turn(self):
         self.turn_index += 1
 
         if self.turn_index >= len(self.turn_order):
             self.turn_index = 0
+
+        if self.turn_index == self.turn_start_index:
             self.advance_trick()
 
         if is_player_bot(self.get_turn_player()):
@@ -83,6 +86,10 @@ class GameState(BaseModel):
     def advance_trick(self):
         self.current_trick.cards = self.discard_pile
         give_trick_to_player(self.current_trick, self.current_trick.winning_player)
+
+        self.turn_index = self.turn_order.index(self.current_trick.winning_player)
+        self.turn_start_index = self.turn_index
+
         self.discard_pile = []
         self.current_trick = Trick()
 

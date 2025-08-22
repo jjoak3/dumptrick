@@ -77,8 +77,21 @@ button:focus > .card {
   border-radius: var(--borderRadius-card);
 }
 
+.discard-pile:focus > .card {
+  border-color: var(--borderColor-focus);
+  outline: var(--borderWidth-card) solid var(--borderColor-focus);
+}
+
+.discard-pile:focus > .card,
+.discard-pile:hover > .card {
+  animation: wiggle 2s ease-in-out infinite;
+  position: initial;
+}
+
 .discard-pile,
 .trick {
+  display: flex;
+  gap: 4px;
   height: var(--height-card);
   position: relative;
   width: var(--width-card);
@@ -86,6 +99,7 @@ button:focus > .card {
 
 .discard-pile > .card,
 .trick > .card {
+  flex-shrink: 0;
   left: 0;
   position: absolute;
   top: 0;

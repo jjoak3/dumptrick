@@ -155,7 +155,7 @@ interface DiscardPile {
 
 function DiscardPile({ gameState }: DiscardPile) {
   return (
-    <div className='discard-pile'>
+    <button className='discard-pile'>
       {gameState.discard_pile.map((card, index) => (
         <Card //
           card={card}
@@ -163,7 +163,7 @@ function DiscardPile({ gameState }: DiscardPile) {
           style={{ top: `-${index * 0.5}px` }}
         />
       ))}
-    </div>
+    </button>
   )
 }
 
