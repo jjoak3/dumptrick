@@ -93,13 +93,16 @@ button:focus > .card {
   border-radius: var(--borderRadius-card);
 }
 
-.discard-pile:focus > .card {
+.discard-pile:focus > .card,
+.trick:focus > .card {
   border-color: var(--borderColor-focus);
   outline: var(--borderWidth-card) solid var(--borderColor-focus);
 }
 
 .discard-pile:focus > .card,
-.discard-pile:hover > .card {
+.discard-pile:hover > .card,
+.trick:focus > .card,
+.trick:hover > .card {
   animation: wiggle 2s ease-in-out infinite;
   position: initial;
 }

@@ -154,7 +154,7 @@ function Tricks({ tricks }: TricksProps) {
   return (
     <div className='tricks'>
       {tricks.map((trick, index) => (
-        <div className='trick' key={index}>
+        <button className='trick' key={index}>
           {trick.cards.map((card, cardIndex) => (
             <Card //
               card={card}
@@ -162,7 +162,7 @@ function Tricks({ tricks }: TricksProps) {
               style={{ top: `-${index * 0.5}px` }}
             />
           ))}
-        </div>
+        </button>
       ))}
     </div>
   )
@@ -173,17 +173,25 @@ interface DiscardPile {
 }
 
 function DiscardPile({ gameState }: DiscardPile) {
-  return (
-    <button className='discard-pile'>
-      {gameState.discard_pile.map((card, index) => (
-        <Card //
-          card={card}
-          key={card}
-          style={{ top: `-${index * 0.5}px` }}
-        />
-      ))}
-    </button>
-  )
+  const renderDiscardPile = () => {
+    if (gameState.discard_pile.length == 0) {
+      return <div className='discard-pile'></div>
+    }
+
+    return (
+      <button className='discard-pile'>
+        {gameState.discard_pile.map((card, index) => (
+          <Card //
+            card={card}
+            key={card}
+            style={{ top: `-${index * 0.5}px` }}
+          />
+        ))}
+      </button>
+    )
+  }
+
+  return renderDiscardPile()
 }
 
 interface HandProps {
