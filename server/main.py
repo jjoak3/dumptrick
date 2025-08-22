@@ -211,17 +211,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 start_game()
 
             elif action == "play_card":
-                play_card(session_id, card)
-
-                await broadcast(
-                    {
-                        "game_state": game_state.to_dict(),
-                        "players": get_players(),
-                    }
-                )
-
-                await asyncio.sleep(1)
-                game_state.advance_turn()
+                await play_card(session_id, card)
 
             await broadcast(
                 {
@@ -321,7 +311,7 @@ def has_suit_in_hand(suit: str, hand: List[str]) -> bool:
     return any(parse_card(card)[1] == suit for card in hand)
 
 
-def play_card(session_id: str, card: str):
+async def play_card(session_id: str, card: str):
     player = players.get(session_id)
 
     if not player and card not in player.hand:
@@ -349,6 +339,23 @@ def play_card(session_id: str, card: str):
     elif game_state.is_card_winning(card):
         game_state.current_trick.winning_card = card
         game_state.current_trick.winning_player = session_id
+
+    await broadcast(
+        {
+            "game_state": game_state.to_dict(),
+            "players": get_players(),
+        }
+    )
+
+    await asyncio.sleep(1)
+    game_state.advance_turn()
+
+    await broadcast(
+        {
+            "game_state": game_state.to_dict(),
+            "players": get_players(),
+        }
+    )
 
 
 def set_turn_order():
@@ -413,24 +420,7 @@ async def schedule_bot_move(session_id: str):
 
 
 async def simulate_message(session_id: str, card: str):
-    play_card(session_id, card)
-
-    await broadcast(
-        {
-            "game_state": game_state.to_dict(),
-            "players": get_players(),
-        }
-    )
-
-    await asyncio.sleep(1)
-    game_state.advance_turn()
-
-    await broadcast(
-        {
-            "game_state": game_state.to_dict(),
-            "players": get_players(),
-        }
-    )
+    await play_card(session_id, card)
 
 
 if __name__ == "__main__":
