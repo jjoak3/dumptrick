@@ -151,10 +151,15 @@ interface TricksProps {
 }
 
 function Tricks({ tricks }: TricksProps) {
+  useEffect(() => {
+    const topTrick = document.querySelector('.tricks > .trick:nth-last-child(1)')
+    topTrick?.classList.remove('top-trick')
+  })
+
   return (
     <div className='tricks'>
       {tricks.map((trick, index) => (
-        <button className='trick' key={index}>
+        <button className={`trick ${index === tricks.length - 1 ? 'top-trick' : ''}`} key={index}>
           {trick.cards.map((card, cardIndex) => (
             <Card //
               card={card}
@@ -173,6 +178,11 @@ interface DiscardPile {
 }
 
 function DiscardPile({ gameState }: DiscardPile) {
+  useEffect(() => {
+    const topCard = document.querySelector('.discard-pile > .card:nth-last-child(1)')
+    topCard?.classList.remove('top-card')
+  })
+
   const renderDiscardPile = () => {
     if (gameState.discard_pile.length == 0) {
       return <div className='discard-pile'></div>
@@ -183,6 +193,7 @@ function DiscardPile({ gameState }: DiscardPile) {
         {gameState.discard_pile.map((card, index) => (
           <Card //
             card={card}
+            className={index === gameState.discard_pile.length - 1 ? 'top-card' : ''}
             key={card}
             style={{ top: `-${index * 0.5}px` }}
           />
@@ -221,12 +232,13 @@ function Hand({ gameState, handleAction, player }: HandProps) {
 
 interface Card {
   card: string
+  className?: string
   disabled?: boolean
   onClick?: () => void
   style?: React.CSSProperties
 }
 
-function Card({ card, disabled, onClick, style }: Card) {
+function Card({ card, className, disabled, onClick, style }: Card) {
   const renderCardLabel = (card: string) => {
     let cardValue = card.slice(0, -1)
     let cardSuit = card[card.length - 1]
@@ -257,10 +269,10 @@ function Card({ card, disabled, onClick, style }: Card) {
 
   return onClick ? (
     <button disabled={disabled} onClick={onClick} style={style}>
-      <div className='card'>{renderCardLabel(card)}</div>
+      <div className={`card ${className}`}>{renderCardLabel(card)}</div>
     </button>
   ) : (
-    <div className='card' style={style}>
+    <div className={`card ${className}`} style={style}>
       {renderCardLabel(card)}
     </div>
   )
