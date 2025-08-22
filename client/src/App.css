@@ -1,10 +1,12 @@
 :root {
-  --backgroundColor-card: #fff;
-  --backgroundColor-inset: #eee;
+  --bgColor-card: #fff;
+  --bgColor-inset: #eee;
   --borderColor-card: #aaa;
   --borderColor-focus: #000;
   --borderRadius-card: 4px;
   --borderWidth-card: 1px;
+  --fgColor-card: #000;
+  --fgColor-default: #000;
   --height-card: 56px;
   --width-card: 40px;
 }
@@ -23,6 +25,19 @@
   box-sizing: border-box;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bgColor-default: #333;
+    --bgColor-inset: #444;
+    --fgColor-default: #fff;
+  }
+}
+
+body {
+  background-color: var(--bgColor-default);
+  color: var(--fgColor-default);
+}
+
 button {
   background: none;
   border: none;
@@ -38,7 +53,7 @@ button:focus {
 }
 
 button:disabled > .card {
-  color: inherit;
+  color: var(--fgColor-card);
   opacity: 0.5;
 }
 
@@ -61,9 +76,10 @@ button:focus > .card {
 
 .card {
   align-items: center;
-  background-color: var(--backgroundColor-card);
+  background-color: var(--bgColor-card);
   border: var(--borderWidth-card) solid var(--borderColor-card);
   border-radius: var(--borderRadius-card);
+  color: var(--fgColor-card);
   display: flex;
   gap: 2px;
   height: var(--height-card);
@@ -73,7 +89,7 @@ button:focus > .card {
 }
 
 .discard-pile {
-  background-color: var(--backgroundColor-inset);
+  background-color: var(--bgColor-inset);
   border-radius: var(--borderRadius-card);
 }
 
