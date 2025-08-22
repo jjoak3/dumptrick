@@ -279,11 +279,12 @@ def connect_player(session_id: str, websocket: WebSocket):
 
 def deal_cards():
     deck = game_state.deck
-    hand_size = 2
+    hand_size = 13
 
     for player in players.values():
         player.hand = deck[:hand_size]
         deck[:] = deck[hand_size:]
+        player.hand.sort(key=lambda card: (parse_card(card)[1], parse_card(card)[0]))
 
 
 def disconnect_player(session_id: str):
