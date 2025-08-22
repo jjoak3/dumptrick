@@ -80,8 +80,10 @@ class GameState(BaseModel):
         if self.turn_index == self.turn_start_index:
             self.advance_trick()
 
-        if is_player_bot(self.get_turn_player()):
-            asyncio.create_task(schedule_bot_move(self.get_turn_player()))
+        self.turn_player = self.get_turn_player()
+
+        if is_player_bot(self.turn_player):
+            asyncio.create_task(schedule_bot_move(self.turn_player))
 
     def advance_trick(self):
         self.current_trick.cards = self.discard_pile
@@ -122,7 +124,7 @@ class GameState(BaseModel):
             "round": self.round,
             "turn_index": self.turn_index,
             "turn_order": self.turn_order,
-            "turn_player": self.get_turn_player(),
+            "turn_player": self.turn_player,
         }
 
 
@@ -210,6 +212,15 @@ async def websocket_endpoint(websocket: WebSocket):
 
             elif action == "play_card":
                 play_card(session_id, card)
+
+                await broadcast(
+                    {
+                        "game_state": game_state.to_dict(),
+                        "players": get_players(),
+                    }
+                )
+
+                await asyncio.sleep(1)
                 game_state.advance_turn()
 
             await broadcast(
@@ -326,6 +337,8 @@ def play_card(session_id: str, card: str):
     ):
         return
 
+    # TODO: Add turn_phase enum to handle the end of a turn rather than resetting turn_player
+    game_state.turn_player = ""
     player.hand.remove(card)
     game_state.discard_pile.append(card)
 
@@ -354,6 +367,7 @@ def start_game():
 
     game_state.game_phase = GamePhase.PLAYING
     set_turn_order()
+    game_state.turn_player = game_state.get_turn_player()
     shuffle_deck()
     deal_cards()
 
@@ -400,6 +414,15 @@ async def schedule_bot_move(session_id: str):
 
 async def simulate_message(session_id: str, card: str):
     play_card(session_id, card)
+
+    await broadcast(
+        {
+            "game_state": game_state.to_dict(),
+            "players": get_players(),
+        }
+    )
+
+    await asyncio.sleep(1)
     game_state.advance_turn()
 
     await broadcast(
