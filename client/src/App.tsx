@@ -84,20 +84,14 @@ function App() {
       <pre>
         {renderStartButton()}
         <p>{renderConnectionStatus()}</p>
-        <p>Players:</p>
-        {players && (
-          <ul>
-            {Object.entries(players).map(([id, player]) => (
-              <li key={id}>{player.name}</li>
-            ))}
-          </ul>
-        )}
+        <p>Scoreboard:</p>
+        {players && <Scoreboard players={players} />}
         <p>Game state:</p>
         {gameState && (
           <ul>
             <li>game_phase: {gameState.game_phase}</li>
             <li>turn_index: {gameState.turn_index}</li>
-            <li>turn: Player {gameState.turn_player}</li>
+            <li>turn: {gameState.turn_player}</li>
           </ul>
         )}
         <p>Discard pile:</p>
@@ -126,6 +120,31 @@ function App() {
 }
 
 export default App
+
+interface ScoreboardProps {
+  players: Record<string, Player>
+}
+
+function Scoreboard({ players }: ScoreboardProps) {
+  return (
+    <table className='scoreboard'>
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Tricks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {Object.entries(players).map(([id, player]) => (
+          <tr key={id}>
+            <td>{player.name}</td>
+            <td>{player.tricks.length}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
 
 interface TricksProps {
   tricks: Trick[]

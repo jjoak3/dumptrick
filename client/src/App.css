@@ -136,3 +136,11 @@ button:focus > .card {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+.scoreboard {
+  text-align: left;
+}
+
+.scoreboard th {
+  font-weight: inherit;
+}
