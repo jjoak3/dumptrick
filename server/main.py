@@ -36,9 +36,23 @@ def parse_card(card: str) -> tuple[int, str]:
     return int(rank), suit
 
 
+def is_round_over():
+    for player in players.values():
+        if len(player.hand) > 0:
+            return False
+
+    return True
+
+
+def reset_tricks_taken():
+    for player in players.values():
+        player.tricks = []
+
+
 class GamePhase(Enum):
     WAITING = auto()
     PLAYING = auto()
+    GAME_OVER = auto()
 
 
 class Trick(BaseModel):
@@ -71,6 +85,22 @@ class GameState(BaseModel):
     turn_player: str = ""
     turn_start_index: int = 0
 
+    def advance_round(self):
+        self.round += 1
+
+        if self.round >= 3:
+            self.game_phase = GamePhase.GAME_OVER
+            return
+            # TODO: Handle game over state
+
+        self.deck = DECK.copy()
+        self.turn_index = 0
+        self.turn_player = self.get_turn_player()
+        self.turn_start_index = self.turn_index
+        shuffle_deck()
+        deal_cards()
+        reset_tricks_taken()
+
     def advance_turn(self):
         self.turn_index += 1
 
@@ -79,6 +109,9 @@ class GameState(BaseModel):
 
         if self.turn_index == self.turn_start_index:
             self.advance_trick()
+
+        if is_round_over():
+            self.advance_round()
 
         self.turn_player = self.get_turn_player()
 
@@ -246,7 +279,7 @@ def connect_player(session_id: str, websocket: WebSocket):
 
 def deal_cards():
     deck = game_state.deck
-    hand_size = 13
+    hand_size = 2
 
     for player in players.values():
         player.hand = deck[:hand_size]

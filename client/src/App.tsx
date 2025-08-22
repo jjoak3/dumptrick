@@ -90,6 +90,7 @@ function App() {
         {gameState && (
           <ul>
             <li>game_phase: {gameState.game_phase}</li>
+            <li>round: {gameState.round}</li>
             <li>turn_index: {gameState.turn_index}</li>
             <li>turn: {gameState.turn_player}</li>
           </ul>
