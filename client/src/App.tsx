@@ -96,6 +96,7 @@ function App() {
         {gameState && (
           <ul>
             <li>game_phase: {gameState.game_phase}</li>
+            <li>turn_index: {gameState.turn_index}</li>
             <li>turn: Player {gameState.turn_player}</li>
           </ul>
         )}

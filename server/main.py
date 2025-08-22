@@ -5,6 +5,7 @@ from logging import error
 from nanoid import generate
 from pydantic import BaseModel
 from typing import Any, Dict, List
+import asyncio
 import json
 import random
 import uvicorn
@@ -54,6 +55,11 @@ def give_trick_to_player(trick: Trick, session_id: str):
         player.tricks.append(trick)
 
 
+class PlayerType(Enum):
+    BOT = auto()
+    HUMAN = auto()
+
+
 class GameState(BaseModel):
     current_trick: Trick = Trick()
     deck: List[str] = []
@@ -70,6 +76,9 @@ class GameState(BaseModel):
         if self.turn_index >= len(self.turn_order):
             self.turn_index = 0
             self.advance_trick()
+
+        if is_player_bot(self.get_turn_player()):
+            asyncio.create_task(schedule_bot_move(self.get_turn_player()))
 
     def advance_trick(self):
         self.current_trick.cards = self.discard_pile
@@ -115,6 +124,7 @@ class Player(BaseModel):
     name: str
     session_id: str
     tricks: List[Trick] = []
+    type: PlayerType
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -122,6 +132,7 @@ class Player(BaseModel):
             "name": self.name,
             "session_id": self.session_id,
             "tricks": [trick.model_dump() for trick in self.tricks],
+            "type": self.type.name,
         }
 
 
@@ -192,6 +203,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             elif action == "play_card":
                 play_card(session_id, card)
+                game_state.advance_turn()
 
             await broadcast(
                 {
@@ -208,6 +220,7 @@ def add_player(session_id: str):
     players[session_id] = Player(
         name=f"Player {session_id}",
         session_id=session_id,
+        type=PlayerType.HUMAN,
     )
 
 
@@ -317,8 +330,6 @@ def play_card(session_id: str, card: str):
         game_state.current_trick.winning_card = card
         game_state.current_trick.winning_player = session_id
 
-    game_state.advance_turn()
-
 
 def set_turn_order():
     for session_id in players:
@@ -330,10 +341,66 @@ def shuffle_deck():
 
 
 def start_game():
+    if len(players) < 4:
+        while len(players) < 4:
+            add_bot()
+
     game_state.game_phase = GamePhase.PLAYING
     set_turn_order()
     shuffle_deck()
     deal_cards()
+
+
+def add_bot():
+    session_id = generate_session_id()
+
+    players[session_id] = Player(
+        name=f"Bot {session_id}",
+        session_id=session_id,
+        type=PlayerType.BOT,
+    )
+
+
+def is_player_bot(session_id: str) -> bool:
+    player = players.get(session_id)
+
+    if player and player.type == PlayerType.BOT:
+        return True
+
+    return False
+
+
+async def schedule_bot_move(session_id: str):
+    player = players.get(session_id)
+    if not player:
+        return
+
+    leading_suit = game_state.current_trick.leading_suit
+
+    matching_cards = []
+    for card in player.hand:
+        if parse_card(card)[1] == leading_suit:
+            matching_cards.append(card)
+
+    if matching_cards:
+        card_to_play = min(matching_cards, key=parse_card)
+    else:
+        card_to_play = max(player.hand, key=parse_card)
+
+    await asyncio.sleep(1)
+    await simulate_message(session_id, card_to_play)
+
+
+async def simulate_message(session_id: str, card: str):
+    play_card(session_id, card)
+    game_state.advance_turn()
+
+    await broadcast(
+        {
+            "game_state": game_state.to_dict(),
+            "players": get_players(),
+        }
+    )
 
 
 if __name__ == "__main__":
