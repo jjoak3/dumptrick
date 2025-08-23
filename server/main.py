@@ -162,6 +162,7 @@ class PlayerType(Enum):
 
 class GameState(BaseModel):
     current_trick: Trick = Trick()
+    deal_order_index: int = 0
     deck: List[str] = []
     discard_pile: List[str] = []
     game_phase: GamePhase = GamePhase.WAITING
@@ -170,6 +171,12 @@ class GameState(BaseModel):
     turn_order: List[str] = []
     turn_player: str = ""
     turn_start_index: int = 0
+
+    def advance_deal_order(self):
+        self.deal_order_index += 1
+
+        if self.deal_order_index >= len(self.turn_order):
+            self.deal_order_index = 0
 
     def advance_round(self):
         self.round += 1
@@ -181,8 +188,9 @@ class GameState(BaseModel):
             return
             # TODO: Handle game over state
 
+        self.advance_deal_order()
         self.deck = DECK.copy()
-        self.turn_index = 0
+        self.turn_index = self.deal_order_index
         self.turn_player = self.get_turn_player()
         self.turn_start_index = self.turn_index
         shuffle_deck()
