@@ -375,8 +375,7 @@ def connect_player(session_id: str, websocket: WebSocket):
 
 def deal_cards():
     deck = game_state.deck
-    # hand_size = 13
-    hand_size = 1
+    hand_size = 13
 
     for player in players.values():
         player.hand = deck[:hand_size]

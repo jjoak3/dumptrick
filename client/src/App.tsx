@@ -87,16 +87,7 @@ function App() {
         {renderStartButton()}
         <p>{renderConnectionStatus()}</p>
         <p>Scoreboard:</p>
-        {players && <Scoreboard players={players} />}
-        <p>Game state:</p>
-        {gameState && (
-          <ul>
-            <li>game_phase: {gameState.game_phase}</li>
-            <li>round: {gameState.round}</li>
-            <li>turn_index: {gameState.turn_index}</li>
-            <li>turn: {gameState.turn_player}</li>
-          </ul>
-        )}
+        {gameState && players && <Scoreboard gameState={gameState} players={players} />}
         <p>Discard pile:</p>
         {gameState && (
           <DiscardPile //
@@ -125,14 +116,16 @@ function App() {
 export default App
 
 interface ScoreboardProps {
+  gameState: GameState
   players: Record<string, Player>
 }
 
-function Scoreboard({ players }: ScoreboardProps) {
+function Scoreboard({ gameState, players }: ScoreboardProps) {
   return (
     <table className='scoreboard'>
       <thead>
         <tr>
+          <th></th>
           <th></th>
           <th>r1</th>
           <th>r2</th>
@@ -146,6 +139,7 @@ function Scoreboard({ players }: ScoreboardProps) {
       <tbody>
         {Object.entries(players).map(([id, player]) => (
           <tr key={id}>
+            <td>{player.session_id == gameState.turn_player ? '*' : ' '}</td>
             <td>
               {player.is_winner && '👑 '}
               {player.name}
