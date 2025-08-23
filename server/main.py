@@ -57,6 +57,7 @@ class GamePhase(Enum):
 
 class Trick(BaseModel):
     cards: List[str] = []
+    is_last_trick: bool = False
     leading_suit: str = ""
     winning_card: str = ""
     winning_player: str = ""
@@ -67,6 +68,91 @@ def give_trick_to_player(trick: Trick, session_id: str):
 
     if player:
         player.tricks.append(trick)
+
+
+def get_trick_count_penalty(tricks: List[Trick]) -> int:
+    return len(tricks)
+
+
+def get_hearts_penalty(tricks: List[Trick]) -> int:
+    penalty = 0
+
+    for trick in tricks:
+        for card in trick.cards:
+            if parse_card(card)[1] == "H":
+                penalty += 10
+
+    return penalty
+
+
+def get_queens_penalty(tricks: List[Trick]) -> int:
+    penalty = 0
+
+    for trick in tricks:
+        for card in trick.cards:
+            if card in ["QC", "QD", "QH", "QS"]:
+                penalty += 25
+
+    return penalty
+
+
+def get_ks_penalty(tricks: List[Trick]) -> int:
+    penalty = 0
+
+    for trick in tricks:
+        if "KS" in trick.cards:
+            penalty += 50
+
+    return penalty
+
+
+def get_last_trick_penalty(tricks: List[Trick]) -> int:
+    penalty = 0
+
+    for trick in tricks:
+        if trick.is_last_trick:
+            penalty += 100
+
+    return penalty
+
+
+def calculate_scores():
+    current_round = game_state.round
+
+    for player in players.values():
+        score = 0
+
+        if current_round == 1:
+            score += get_trick_count_penalty(player.tricks)
+        elif current_round == 2:
+            score += get_hearts_penalty(player.tricks)
+        elif current_round == 3:
+            score += get_queens_penalty(player.tricks)
+        elif current_round == 4:
+            score += get_ks_penalty(player.tricks)
+        elif current_round == 5:
+            score += get_last_trick_penalty(player.tricks)
+        elif current_round == 6:
+            score += get_trick_count_penalty(player.tricks)
+            score += get_hearts_penalty(player.tricks)
+            score += get_queens_penalty(player.tricks)
+            score += get_ks_penalty(player.tricks)
+            score += get_last_trick_penalty(player.tricks)
+
+        player.scores.append(score)
+
+
+def get_winners():
+    total_scores = []
+
+    for player in players.values():
+        total_scores.append((player.session_id, sum(player.scores)))
+
+    lowest_score = min([score for _, score in total_scores])
+
+    for session_id, score in total_scores:
+        if score == lowest_score:
+            players[session_id].is_winner = True
 
 
 class PlayerType(Enum):
@@ -87,9 +173,11 @@ class GameState(BaseModel):
 
     def advance_round(self):
         self.round += 1
+        calculate_scores()
 
-        if self.round >= 3:
+        if self.round >= 6:
             self.game_phase = GamePhase.GAME_OVER
+            get_winners()
             return
             # TODO: Handle game over state
 
@@ -120,6 +208,8 @@ class GameState(BaseModel):
 
     def advance_trick(self):
         self.current_trick.cards = self.discard_pile
+        if is_round_over():
+            self.current_trick.is_last_trick = True
         give_trick_to_player(self.current_trick, self.current_trick.winning_player)
 
         self.turn_index = self.turn_order.index(self.current_trick.winning_player)
@@ -163,8 +253,11 @@ class GameState(BaseModel):
 
 class Player(BaseModel):
     hand: List[str] = []
+    is_winner: bool = False
     name: str
+    scores: List[int] = []
     session_id: str
+    total_score: int = 0
     tricks: List[Trick] = []
     type: PlayerType
 
@@ -172,7 +265,10 @@ class Player(BaseModel):
         return {
             "hand": self.hand,
             "name": self.name,
+            "is_winner": self.is_winner,
+            "scores": self.scores,
             "session_id": self.session_id,
+            "total_score": self.total_score,
             "tricks": [trick.model_dump() for trick in self.tricks],
             "type": self.type.name,
         }
@@ -279,7 +375,8 @@ def connect_player(session_id: str, websocket: WebSocket):
 
 def deal_cards():
     deck = game_state.deck
-    hand_size = 13
+    # hand_size = 13
+    hand_size = 1
 
     for player in players.values():
         player.hand = deck[:hand_size]
@@ -381,7 +478,7 @@ async def play_card(session_id: str, card: str):
         }
     )
 
-    await asyncio.sleep(1)
+    await asyncio.sleep(0.25)
     game_state.advance_turn()
 
     await broadcast(
@@ -449,7 +546,7 @@ async def schedule_bot_move(session_id: str):
     else:
         card_to_play = max(player.hand, key=parse_card)
 
-    await asyncio.sleep(1)
+    await asyncio.sleep(0.25)
     await simulate_message(session_id, card_to_play)
 
 

@@ -21,7 +21,9 @@ interface GameState {
 
 interface Player {
   hand: string[]
+  is_winner: boolean
   name: string
+  scores: number[]
   session_id: string
   tricks: Trick[]
 }
@@ -131,15 +133,30 @@ function Scoreboard({ players }: ScoreboardProps) {
     <table className='scoreboard'>
       <thead>
         <tr>
-          <th>Player</th>
-          <th>Tricks</th>
+          <th></th>
+          <th>r1</th>
+          <th>r2</th>
+          <th>r3</th>
+          <th>r4</th>
+          <th>r5</th>
+          <th>r6</th>
+          <th>Total</th>
         </tr>
       </thead>
       <tbody>
         {Object.entries(players).map(([id, player]) => (
           <tr key={id}>
-            <td>{player.name}</td>
-            <td>{player.tricks.length}</td>
+            <td>
+              {player.is_winner && '👑 '}
+              {player.name}
+            </td>
+            <td>{player.scores[0]}</td>
+            <td>{player.scores[1]}</td>
+            <td>{player.scores[2]}</td>
+            <td>{player.scores[3]}</td>
+            <td>{player.scores[4]}</td>
+            <td>{player.scores[5]}</td>
+            <td>{player.scores.reduce((a, b) => a + b, 0)}</td>
           </tr>
         ))}
       </tbody>
