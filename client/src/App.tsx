@@ -87,7 +87,6 @@ function App() {
     <>
       <pre>
         <p>{renderStartButton()}</p>
-        <p>Scoreboard:</p>
         {gameState && players && (
           <Scoreboard //
             gameState={gameState}
@@ -95,12 +94,14 @@ function App() {
             sessionId={sessionId}
           />
         )}
+        <p>***</p>
         <p>Discard pile:</p>
         {gameState && (
           <DiscardPile //
             gameState={gameState}
           />
         )}
+        <p>***</p>
         <p>My hand:</p>
         {gameState && players && players[sessionId] && (
           <Hand //
@@ -135,13 +136,13 @@ function Scoreboard({ gameState, players, sessionId }: ScoreboardProps) {
         <tr>
           <th></th>
           <th></th>
-          <th>R1</th>
-          <th>R2</th>
-          <th>R3</th>
-          <th>R4</th>
-          <th>R5</th>
-          <th>R6</th>
-          <th>Total</th>
+          <th className='col-score'>{'  '}R1</th>
+          <th className='col-score'>{'  '}R2</th>
+          <th className='col-score'>{'  '}R3</th>
+          <th className='col-score'>{'  '}R4</th>
+          <th className='col-score'>{'  '}R5</th>
+          <th className='col-score'>{'  '}R6</th>
+          <th className='col-score'> TTL</th>
         </tr>
       </thead>
       <tbody>
@@ -153,13 +154,13 @@ function Scoreboard({ gameState, players, sessionId }: ScoreboardProps) {
               {player.session_id == sessionId && ' (You)'}
               {gameState.game_phase == 'GAME_OVER' && player.is_winner && ' 👑'}
             </td>
-            <td>{player.scores[0] ? player.scores[0] : '-'}</td>
-            <td>{player.scores[1] ? player.scores[1] : '-'}</td>
-            <td>{player.scores[2] ? player.scores[2] : '-'}</td>
-            <td>{player.scores[3] ? player.scores[3] : '-'}</td>
-            <td>{player.scores[4] ? player.scores[4] : '-'}</td>
-            <td>{player.scores[5] ? player.scores[5] : '-'}</td>
-            <td>{player.total_score ? player.total_score : '-'}</td>
+            <td className='col-score'>{player.scores[0] != undefined ? player.scores[0] : '-'}</td>
+            <td className='col-score'>{player.scores[1] != undefined ? player.scores[1] : '-'}</td>
+            <td className='col-score'>{player.scores[2] != undefined ? player.scores[2] : '-'}</td>
+            <td className='col-score'>{player.scores[3] != undefined ? player.scores[3] : '-'}</td>
+            <td className='col-score'>{player.scores[4] != undefined ? player.scores[4] : '-'}</td>
+            <td className='col-score'>{player.scores[5] != undefined ? player.scores[5] : '-'}</td>
+            <td className='col-score'>{player.total_score != undefined ? player.total_score : '-'}</td>
           </tr>
         ))}
       </tbody>

@@ -129,12 +129,12 @@ button:focus > .card {
   min-height: var(--height-card);
 }
 
-.scoreboard {
-  text-align: left;
-}
-
 .scoreboard th {
   font-weight: inherit;
+}
+
+.scoreboard .col-score {
+  text-align: right;
 }
 
 .tricks {
