@@ -3,13 +3,21 @@
   --bgColor-inset: #eee;
   --borderColor-card: #aaa;
   --borderColor-focus: #000;
-  --borderRadius-card: 4px;
-  --borderWidth-card: 1px;
+  --borderRadius-card: 0.333rem;
+  --borderWidth-card: 0.125rem;
   --easeOutExpo: cubic-bezier(0.16, 1, 0.3, 1);
   --fgColor-card: #000;
   --fgColor-default: #000;
-  --height-card: 56px;
-  --width-card: 40px;
+  --height-card: calc(1.25rem * 3.5);
+  --rotate-left: -5.625deg;
+  --rotate-right: 5.625deg;
+  --spacing-0: 0;
+  --spacing-0_5: 0.125rem;
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --width-card: calc(1.25rem * 2.5);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +30,13 @@
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 body {
@@ -51,10 +66,10 @@ button:disabled > .card {
 @keyframes wiggle {
   0%,
   100% {
-    transform: rotate(-5.625deg) translateY(-8px);
+    transform: rotate(var(--rotate-left)) translateY(calc(var(--spacing-2) * -1));
   }
   50% {
-    transform: rotate(5.625deg) translateY(-8px);
+    transform: rotate(var(--rotate-right)) translateY(calc(var(--spacing-2) * -1));
   }
 }
 
@@ -69,6 +84,14 @@ button:focus > .card {
   outline: var(--borderWidth-card) solid var(--borderColor-focus);
 }
 
+p {
+  margin-top: var(--spacing-4);
+}
+
+pre.app {
+  padding: var(--spacing-4);
+}
+
 .card {
   align-items: center;
   background-color: var(--bgColor-card);
@@ -76,7 +99,7 @@ button:focus > .card {
   border-radius: var(--borderRadius-card);
   color: var(--fgColor-card);
   display: flex;
-  gap: 2px;
+  gap: var(--spacing-1);
   height: var(--height-card);
   justify-content: center;
   user-select: none;
@@ -85,23 +108,24 @@ button:focus > .card {
 
 .discard-pile {
   display: flex;
+  margin-top: var(--spacing-4);
   min-height: var(--height-card);
 }
 
 .discard-pile > .card:nth-child(odd) {
-  transform: rotate(-5.625deg);
+  transform: rotate(var(--rotate-left));
 }
 
 .discard-pile > .card:nth-child(even) {
-  transform: rotate(5.625deg);
+  transform: rotate(var(--rotate-right));
 }
 
 @keyframes animateOddCard {
   0% {
-    transform: rotate(5.625deg) translateY(16px);
+    transform: rotate(var(--rotate-right)) translateY(var(--spacing-4));
   }
   100% {
-    transform: rotate(-5.625deg) translateY(0);
+    transform: rotate(var(--rotate-left)) translateY(0);
   }
 }
 
@@ -111,10 +135,10 @@ button:focus > .card {
 
 @keyframes animateEvenCard {
   0% {
-    transform: rotate(-5.625deg) translateY(16px);
+    transform: rotate(var(--rotate-left)) translateY(var(--spacing-4));
   }
   100% {
-    transform: rotate(5.625deg) translateY(0);
+    transform: rotate(var(--rotate-right)) translateY(0);
   }
 }
 
@@ -125,7 +149,8 @@ button:focus > .card {
 .hand {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-4);
   min-height: var(--height-card);
 }
 
@@ -140,7 +165,8 @@ button:focus > .card {
 .tricks {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-4);
 }
 
 .trick {
@@ -152,7 +178,7 @@ button:focus > .card {
 
 @keyframes animateTrick {
   0% {
-    transform: translateY(16px);
+    transform: translateY(var(--spacing-4));
   }
   100% {
     transform: translateY(0);
@@ -171,15 +197,15 @@ button:focus > .card {
 }
 
 .trick > .card:nth-child(odd) {
-  transform: rotate(-5.625deg);
+  transform: rotate(var(--rotate-left));
 }
 
 .trick > .card:nth-child(even) {
-  transform: rotate(5.625deg);
+  transform: rotate(var(--rotate-right));
 }
 
 .trick:is(:focus, :hover) > .card {
-  margin-left: -8px;
+  margin-left: calc(var(--spacing-4) * -1);
   position: initial;
 }
 

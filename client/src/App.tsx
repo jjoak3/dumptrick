@@ -85,7 +85,7 @@ function App() {
 
   return (
     <>
-      <pre>
+      <pre className='app'>
         <p>{renderStartButton()}</p>
         {gameState && players && (
           <Scoreboard //
