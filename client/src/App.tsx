@@ -1,22 +1,14 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
-interface Trick {
-  cards: string[]
-  leading_suit: string
-  winning_card: string
-  winning_player: string
-}
-
 interface GameState {
-  current_trick: Trick
-  deck: string[]
   discard_pile: string[]
   game_phase: string
-  round: number
-  turn_index: number
-  turn_order: string[]
   turn_player: string
+}
+
+interface Players {
+  [session_id: string]: Player
 }
 
 interface Player {
@@ -25,24 +17,39 @@ interface Player {
   name: string
   scores: number[]
   session_id: string
+  total_score: number
   tricks: Trick[]
 }
 
+interface Trick {
+  cards: string[]
+}
+
+const createWebSocket = () => {
+  const storedId = localStorage.getItem('session_id')
+  const serverHost = import.meta.env.VITE_SERVER_HOST
+  let url = new URL(`ws://${serverHost}:8000/ws`)
+
+  if (storedId) url.searchParams.set('session_id', storedId)
+
+  return new WebSocket(url.toString())
+}
+
 function App() {
-  const [gameState, setGameState] = useState<GameState | undefined>(undefined)
-  const [players, setPlayers] = useState<Record<string, Player>>({})
+  const [gameState, setGameState] = useState<GameState | null>(null)
+  const [players, setPlayers] = useState<Players>({})
   const [sessionId, setSessionId] = useState('')
+
   const websocketRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    const storedSessionId = localStorage.getItem('session_id')
-    const websocketUrl = `ws://${import.meta.env.VITE_HOST_SERVER}:8000/ws` + (storedSessionId ? `?session_id=${storedSessionId}` : '')
-    const websocket = new WebSocket(websocketUrl)
+    const websocket = createWebSocket()
     websocketRef.current = websocket
 
     websocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
+
         if (data.game_state) setGameState(data.game_state)
         if (data.players) setPlayers(data.players)
         if (data.session_id) setSessionId(data.session_id)
@@ -59,23 +66,18 @@ function App() {
   }, [sessionId])
 
   const handleAction = (action: string, card?: string) => {
-    if (websocketRef.current) {
-      websocketRef.current.send(JSON.stringify({ action, card }))
-    }
-  }
+    const websocket = websocketRef.current
+    const message = JSON.stringify({ action, card })
 
-  const renderConnectionStatus = () => {
-    if (websocketRef.current) {
-      return `Connected as Player ${sessionId}`
-    } else {
-      return 'Not connected to WebSocket server'
-    }
+    if (websocket) websocket.send(message)
   }
 
   const renderStartButton = () => {
     switch (gameState?.game_phase) {
       case 'WAITING':
         return <button onClick={() => handleAction('start_game')}>Start game</button>
+      case 'GAME_OVER':
+        return <button onClick={() => handleAction('restart_game')}>Restart game</button>
       default:
         return null
     }
@@ -84,10 +86,15 @@ function App() {
   return (
     <>
       <pre>
-        {renderStartButton()}
-        <p>{renderConnectionStatus()}</p>
+        <p>{renderStartButton()}</p>
         <p>Scoreboard:</p>
-        {gameState && players && <Scoreboard gameState={gameState} players={players} />}
+        {gameState && players && (
+          <Scoreboard //
+            gameState={gameState}
+            players={players}
+            sessionId={sessionId}
+          />
+        )}
         <p>Discard pile:</p>
         {gameState && (
           <DiscardPile //
@@ -117,22 +124,23 @@ export default App
 
 interface ScoreboardProps {
   gameState: GameState
-  players: Record<string, Player>
+  players: Players
+  sessionId: string
 }
 
-function Scoreboard({ gameState, players }: ScoreboardProps) {
+function Scoreboard({ gameState, players, sessionId }: ScoreboardProps) {
   return (
     <table className='scoreboard'>
       <thead>
         <tr>
           <th></th>
           <th></th>
-          <th>r1</th>
-          <th>r2</th>
-          <th>r3</th>
-          <th>r4</th>
-          <th>r5</th>
-          <th>r6</th>
+          <th>R1</th>
+          <th>R2</th>
+          <th>R3</th>
+          <th>R4</th>
+          <th>R5</th>
+          <th>R6</th>
           <th>Total</th>
         </tr>
       </thead>
@@ -141,16 +149,17 @@ function Scoreboard({ gameState, players }: ScoreboardProps) {
           <tr key={id}>
             <td>{player.session_id == gameState.turn_player ? '*' : ' '}</td>
             <td>
-              {player.is_winner && '👑 '}
               {player.name}
+              {player.session_id == sessionId && ' (You)'}
+              {gameState.game_phase == 'GAME_OVER' && player.is_winner && ' 👑'}
             </td>
-            <td>{player.scores[0]}</td>
-            <td>{player.scores[1]}</td>
-            <td>{player.scores[2]}</td>
-            <td>{player.scores[3]}</td>
-            <td>{player.scores[4]}</td>
-            <td>{player.scores[5]}</td>
-            <td>{player.scores.reduce((a, b) => a + b, 0)}</td>
+            <td>{player.scores[0] ? player.scores[0] : '-'}</td>
+            <td>{player.scores[1] ? player.scores[1] : '-'}</td>
+            <td>{player.scores[2] ? player.scores[2] : '-'}</td>
+            <td>{player.scores[3] ? player.scores[3] : '-'}</td>
+            <td>{player.scores[4] ? player.scores[4] : '-'}</td>
+            <td>{player.scores[5] ? player.scores[5] : '-'}</td>
+            <td>{player.total_score ? player.total_score : '-'}</td>
           </tr>
         ))}
       </tbody>
@@ -163,25 +172,45 @@ interface TricksProps {
 }
 
 function Tricks({ tricks }: TricksProps) {
-  useEffect(() => {
-    const topTrick = document.querySelector('.tricks > .trick:nth-last-child(1)')
-    topTrick?.classList.remove('top-trick')
-  })
-
   return (
     <div className='tricks'>
-      {tricks.map((trick, index) => (
-        <button className={`trick ${index === tricks.length - 1 ? 'top-trick' : ''}`} key={index}>
-          {trick.cards.map((card, cardIndex) => (
-            <Card //
-              card={card}
-              key={cardIndex}
-              style={{ top: `-${index * 0.5}px` }}
-            />
-          ))}
-        </button>
-      ))}
+      {tricks.map((trick, index) => {
+        const isTopTrick = index === tricks.length - 1
+
+        return (
+          <Trick //
+            className={isTopTrick ? 'animate' : ''}
+            key={index}
+            index={index}
+            trick={trick}
+          />
+        )
+      })}
     </div>
+  )
+}
+
+interface TrickProps {
+  className?: string
+  index: number
+  trick: Trick
+}
+
+function Trick({ className, index, trick }: TrickProps) {
+  return (
+    <button className={`trick ${className}`}>
+      {trick.cards.map((card, cardIndex) => {
+        const topOffset = index * 0.5
+
+        return (
+          <Card //
+            card={card}
+            key={cardIndex}
+            style={{ top: `-${topOffset}px` }}
+          />
+        )
+      })}
+    </button>
   )
 }
 
@@ -190,31 +219,25 @@ interface DiscardPile {
 }
 
 function DiscardPile({ gameState }: DiscardPile) {
-  useEffect(() => {
-    const topCard = document.querySelector('.discard-pile > .card:nth-last-child(1)')
-    topCard?.classList.remove('top-card')
-  })
+  if (gameState.discard_pile.length == 0) return <div className='discard-pile'></div>
 
-  const renderDiscardPile = () => {
-    if (gameState.discard_pile.length == 0) {
-      return <div className='discard-pile'></div>
-    }
+  return (
+    <div className='discard-pile'>
+      {gameState.discard_pile.map((card, index) => {
+        const isTopCard = index === gameState.discard_pile.length - 1
+        const topOffset = index * 0.5
 
-    return (
-      <div className='discard-pile'>
-        {gameState.discard_pile.map((card, index) => (
+        return (
           <Card //
             card={card}
-            className={index === gameState.discard_pile.length - 1 ? 'top-card' : ''}
+            className={isTopCard ? 'animate' : ''}
             key={card}
-            style={{ top: `-${index * 0.5}px` }}
+            style={{ top: `-${topOffset}px` }}
           />
-        ))}
-      </div>
-    )
-  }
-
-  return renderDiscardPile()
+        )
+      })}
+    </div>
+  )
 }
 
 interface HandProps {
@@ -232,9 +255,7 @@ function Hand({ gameState, handleAction, player }: HandProps) {
           disabled={gameState.turn_player != player.session_id}
           key={card}
           onClick={() => {
-            if (gameState.turn_player == player.session_id) {
-              handleAction('play_card', card)
-            }
+            if (gameState.turn_player == player.session_id) handleAction('play_card', card)
           }}
         />
       ))}
@@ -252,29 +273,29 @@ interface Card {
 
 function Card({ card, className, disabled, onClick, style }: Card) {
   const renderCardLabel = (card: string) => {
-    let cardValue = card.slice(0, -1)
-    let cardSuit = card[card.length - 1]
+    let rank = card.slice(0, -1)
+    let suit = card[card.length - 1]
 
-    switch (cardSuit) {
+    switch (suit) {
       case 'H':
-        cardSuit = '♥️'
+        suit = '♥️'
         break
       case 'D':
-        cardSuit = '♦️'
+        suit = '♦️'
         break
       case 'C':
-        cardSuit = '♣️'
+        suit = '♣️'
         break
       case 'S':
-        cardSuit = '♠️'
+        suit = '♠️'
         break
       default:
     }
 
     return (
       <>
-        <span>{cardValue}</span>
-        <span>{cardSuit}</span>
+        <span>{rank}</span>
+        <span>{suit}</span>
       </>
     )
   }

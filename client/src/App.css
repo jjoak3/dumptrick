@@ -5,24 +5,11 @@
   --borderColor-focus: #000;
   --borderRadius-card: 4px;
   --borderWidth-card: 1px;
+  --easeOutExpo: cubic-bezier(0.16, 1, 0.3, 1);
   --fgColor-card: #000;
   --fgColor-default: #000;
   --height-card: 56px;
   --width-card: 40px;
-}
-
-@keyframes wiggle {
-  0%,
-  100% {
-    transform: rotate(-5.625deg) translateY(-8px);
-  }
-  50% {
-    transform: rotate(5.625deg) translateY(-8px);
-  }
-}
-
-* {
-  box-sizing: border-box;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,6 +18,10 @@
     --bgColor-inset: #444;
     --fgColor-default: #fff;
   }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
@@ -57,6 +48,16 @@ button:disabled > .card {
   opacity: 0.5;
 }
 
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-5.625deg) translateY(-8px);
+  }
+  50% {
+    transform: rotate(5.625deg) translateY(-8px);
+  }
+}
+
 button:focus > .card,
 button:not(:disabled):hover > .card {
   animation: wiggle 2s ease-in-out infinite;
@@ -66,13 +67,6 @@ button:not(:disabled):hover > .card {
 button:focus > .card {
   border-color: var(--borderColor-focus);
   outline: var(--borderWidth-card) solid var(--borderColor-focus);
-}
-
-.hand {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-height: var(--height-card);
 }
 
 .card {
@@ -102,6 +96,47 @@ button:focus > .card {
   transform: rotate(5.625deg);
 }
 
+@keyframes animateOddCard {
+  0% {
+    transform: rotate(5.625deg) translateY(16px);
+  }
+  100% {
+    transform: rotate(-5.625deg) translateY(0);
+  }
+}
+
+.discard-pile > .card.animate:nth-child(odd) {
+  animation: animateOddCard 500ms var(--easeOutExpo);
+}
+
+@keyframes animateEvenCard {
+  0% {
+    transform: rotate(-5.625deg) translateY(16px);
+  }
+  100% {
+    transform: rotate(5.625deg) translateY(0);
+  }
+}
+
+.discard-pile > .card.animate:nth-child(even) {
+  animation: animateEvenCard 500ms var(--easeOutExpo);
+}
+
+.hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: var(--height-card);
+}
+
+.scoreboard {
+  text-align: left;
+}
+
+.scoreboard th {
+  font-weight: inherit;
+}
+
 .tricks {
   display: flex;
   flex-wrap: wrap;
@@ -115,20 +150,24 @@ button:focus > .card {
   width: var(--width-card);
 }
 
+@keyframes animateTrick {
+  0% {
+    transform: translateY(16px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.trick.animate {
+  animation: animateTrick 500ms var(--easeOutExpo);
+}
+
 .trick > .card {
   flex-shrink: 0;
   left: 0;
   position: absolute;
   top: 0;
-}
-
-.trick:is(:focus, :hover) > .card {
-  margin-left: -8px;
-  position: initial;
-}
-
-.trick:is(:focus, :hover) > .card:first-child {
-  margin-left: 0;
 }
 
 .trick > .card:nth-child(odd) {
@@ -139,23 +178,11 @@ button:focus > .card {
   transform: rotate(5.625deg);
 }
 
-.scoreboard {
-  text-align: left;
+.trick:is(:focus, :hover) > .card {
+  margin-left: -8px;
+  position: initial;
 }
 
-.scoreboard th {
-  font-weight: inherit;
-}
-
-.discard-pile > .card,
-.trick {
-  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.discard-pile > .card.top-card {
-  transform: rotate(0deg) translateY(16px);
-}
-
-.trick.top-trick {
-  transform: translateY(16px);
+.trick:is(:focus, :hover) > .card:first-child {
+  margin-left: 0;
 }
