@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from logging import error
 from nanoid import generate
 from pydantic import BaseModel
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import asyncio
 import json
 import random
@@ -72,6 +72,8 @@ class PlayerType(Enum):
 
 
 class Player(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+
     hand: List[str] = []
     is_winner: bool = False
     name: str
@@ -80,6 +82,13 @@ class Player(BaseModel):
     total_score: int = 0
     tricks: List[Trick] = []
     type: PlayerType
+    websocket: WebSocket = None
+
+    def set_websocket(self, websocket: WebSocket):
+        self.websocket = websocket
+
+    def clear_websocket(self):
+        self.websocket = None
 
     def get_card_count_penalty(self) -> int:
         penalty = 0
@@ -355,7 +364,6 @@ class GameState(BaseModel):
 
 game_state = GameState()
 players = Players()
-session_to_socket: Dict[str, WebSocket] = {}
 
 
 @app.get("/")
@@ -378,7 +386,7 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.close()
             return
 
-    connect_player(session_id, websocket)
+    players.get(session_id).set_websocket(websocket)
 
     await websocket.send_json(
         {
@@ -410,11 +418,22 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
             )
     except WebSocketDisconnect:
-        if session_id in session_to_socket:
-            disconnect_player(session_id)
+        player = players.get(session_id)
+        if player:
+            player.clear_websocket()
 
 
 """Helpers"""
+
+
+async def broadcast(payload: Dict[str, Any]):
+    for player in players.values():
+        if player.websocket:
+            try:
+                await player.websocket.send_json(payload)
+            except Exception as e:
+                player.clear_websocket()
+                error(f"Error broadcasting to player {player.session_id}: {e}")
 
 
 def generate_session_id() -> str:
@@ -444,25 +463,6 @@ def parse_card(card: str) -> tuple[int, str]:
         rank = "11"
 
     return int(rank), suit
-
-
-"""WebSockets"""
-
-
-async def broadcast(payload: Dict[str, Any]):
-    for socket in session_to_socket.values():
-        try:
-            await socket.send_json(payload)
-        except Exception:
-            error(f"Error broadcasting to {socket.client.host}:{socket.client.port}")
-
-
-def connect_player(session_id: str, websocket: WebSocket):
-    session_to_socket[session_id] = websocket
-
-
-def disconnect_player(session_id: str):
-    del session_to_socket[session_id]
 
 
 """Play actions"""
