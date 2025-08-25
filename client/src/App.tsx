@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
 interface GameState {
+  current_round: number
   discard_pile: string[]
   game_phase: string
   turn_player: string
@@ -94,8 +95,12 @@ function App() {
             sessionId={sessionId}
           />
         )}
+        {gameState && (
+          <Penalties //
+            gameState={gameState}
+          />
+        )}
         <p>***</p>
-        <p>Discard pile:</p>
         {gameState && (
           <DiscardPile //
             gameState={gameState}
@@ -142,14 +147,13 @@ function Scoreboard({ gameState, players, sessionId }: ScoreboardProps) {
             <th className='col-score'>{'  '}R3</th>
             <th className='col-score'>{'  '}R4</th>
             <th className='col-score'>{'  '}R5</th>
-            <th className='col-score'>{'  '}R6</th>
             <th className='col-score'> TTL</th>
           </tr>
         </thead>
         <tbody>
           {Object.entries(players).map(([id, player]) => (
             <tr key={id}>
-              <td>{player.session_id == gameState.turn_player ? '*' : ' '}</td>
+              <td>{player.session_id == gameState.turn_player ? '* ' : '  '}</td>
               <td>
                 {player.name}
                 {player.session_id == sessionId && ' (You)'}
@@ -160,13 +164,38 @@ function Scoreboard({ gameState, players, sessionId }: ScoreboardProps) {
               <td className='col-score'>{player.scores[2] != undefined ? player.scores[2] : '-'}</td>
               <td className='col-score'>{player.scores[3] != undefined ? player.scores[3] : '-'}</td>
               <td className='col-score'>{player.scores[4] != undefined ? player.scores[4] : '-'}</td>
-              <td className='col-score'>{player.scores[5] != undefined ? player.scores[5] : '-'}</td>
               <td className='col-score'>{player.total_score != undefined ? player.total_score : '-'}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </pre>
+  )
+}
+
+interface PenaltiesProps {
+  gameState: GameState
+}
+
+function Penalties({ gameState }: PenaltiesProps) {
+  const penalties = [
+    //
+    '  +1 for every card',
+    '  +10 for every heart',
+    '  +25 for every queen',
+    '  +50 for the king of spades',
+    '  +100 for the last trick',
+  ]
+
+  return (
+    <details className='penalties-wrapper'>
+      <summary>Penalties ({gameState.current_round + 1})</summary>
+      <ul className='penalties'>
+        {penalties.slice(0, gameState.current_round + 1).map((penalty, index) => (
+          <li key={index}>{penalty}</li>
+        ))}
+      </ul>
+    </details>
   )
 }
 

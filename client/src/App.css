@@ -36,7 +36,7 @@
 
 html {
   font-family: monospace;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
 }
@@ -86,8 +86,29 @@ button:focus > .card {
   outline: var(--borderWidth-card) solid var(--borderColor-focus);
 }
 
+details.penalties-wrapper {
+  margin-top: var(--spacing-4);
+  white-space: pre;
+}
+
+details.penalties-wrapper > summary {
+  list-style: none;
+}
+
+details.penalties-wrapper > summary::before {
+  content: '+ ';
+}
+
+details.penalties-wrapper[open] > summary::before {
+  content: '- ';
+}
+
 p {
   margin-top: var(--spacing-4);
+}
+
+ul.penalties {
+  list-style: none;
 }
 
 .app {
@@ -162,6 +183,7 @@ p {
 }
 
 .scoreboard {
+  border-collapse: collapse;
   table-layout: fixed;
 }
 

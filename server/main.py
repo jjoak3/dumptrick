@@ -84,60 +84,14 @@ class Player(BaseModel):
     type: PlayerType = PlayerType.HUMAN
     websocket: WebSocket = None
 
-    def set_websocket(self, websocket: WebSocket):
-        self.websocket = websocket
-
     def clear_websocket(self):
         self.websocket = None
 
-    def get_card_count_penalty(self) -> int:
-        penalty = 0
-
-        for trick in self.tricks:
-            penalty += len(trick.cards)
-
-        return penalty
-
-    def get_hearts_penalty(self) -> int:
-        penalty = 0
-
-        for trick in self.tricks:
-            for card in trick.cards:
-                if parse_card(card)[1] == "H":
-                    penalty += 10
-
-        return penalty
-
-    def get_queens_penalty(self) -> int:
-        penalty = 0
-
-        for trick in self.tricks:
-            for card in trick.cards:
-                if card in ["QC", "QD", "QH", "QS"]:
-                    penalty += 25
-
-        return penalty
-
-    def get_ks_penalty(self) -> int:
-        penalty = 0
-
-        for trick in self.tricks:
-            if "KS" in trick.cards:
-                penalty += 50
-
-        return penalty
-
-    def get_last_trick_penalty(self) -> int:
-        penalty = 0
-
-        for trick in self.tricks:
-            if trick.is_last_trick:
-                penalty += 100
-
-        return penalty
-
     def is_bot(self) -> bool:
         return self.type == PlayerType.BOT
+
+    def set_websocket(self, websocket: WebSocket):
+        self.websocket = websocket
 
     def take_trick(self, trick: Trick):
         self.tricks.append(trick)
@@ -169,6 +123,33 @@ class Players(Dict[str, Player]):
             type=PlayerType.HUMAN,
         )
 
+    def calculate_scores(self):
+        for player in self.values():
+            score = 0
+
+            if game_state.current_round == 1:
+                score += get_card_count_penalty(player.tricks)
+            elif game_state.current_round == 2:
+                score += get_card_count_penalty(player.tricks)
+                score += get_hearts_penalty(player.tricks)
+            elif game_state.current_round == 3:
+                score += get_card_count_penalty(player.tricks)
+                score += get_hearts_penalty(player.tricks)
+                score += get_queens_penalty(player.tricks)
+            elif game_state.current_round == 4:
+                score += get_card_count_penalty(player.tricks)
+                score += get_hearts_penalty(player.tricks)
+                score += get_queens_penalty(player.tricks)
+                score += get_ks_penalty(player.tricks)
+            elif game_state.current_round == 5:
+                score += get_card_count_penalty(player.tricks)
+                score += get_hearts_penalty(player.tricks)
+                score += get_queens_penalty(player.tricks)
+                score += get_ks_penalty(player.tricks)
+                score += get_last_trick_penalty(player.tricks)
+
+            player.scores.append(score)
+
     def clear_scores(self):
         for player in self.values():
             player.scores.clear()
@@ -177,8 +158,13 @@ class Players(Dict[str, Player]):
         for player in self.values():
             player.tricks.clear()
 
-    def get_total_scores(self):
-        return {session_id: sum(player.scores) for session_id, player in self.items()}
+    def get_total_scores(self) -> Dict[str, int]:
+        total_scores = {}
+
+        for session_id, player in self.items():
+            total_scores[session_id] = sum(player.scores)
+
+        return total_scores
 
     def set_winners(self):
         total_scores = self.get_total_scores()
@@ -283,9 +269,9 @@ class GameState(BaseModel):
 
     def advance_round(self):
         self.current_round += 1
-        self.calculate_scores()
+        players.calculate_scores()
 
-        if self.current_round >= 6:
+        if self.current_round >= 5:
             return self.end_game()
 
         self.round_start_index = self.increment_index(self.round_start_index)
@@ -299,29 +285,6 @@ class GameState(BaseModel):
         self.deal_cards()
 
         players.clear_tricks()
-
-    def calculate_scores(self):
-        for player in players.values():
-            score = 0
-
-            if self.current_round == 1:
-                score += player.get_card_count_penalty()
-            elif self.current_round == 2:
-                score += player.get_hearts_penalty()
-            elif self.current_round == 3:
-                score += player.get_queens_penalty()
-            elif self.current_round == 4:
-                score += player.get_ks_penalty()
-            elif self.current_round == 5:
-                score += player.get_last_trick_penalty()
-            elif self.current_round == 6:
-                score += player.get_card_count_penalty()
-                score += player.get_hearts_penalty()
-                score += player.get_queens_penalty()
-                score += player.get_ks_penalty()
-                score += player.get_last_trick_penalty()
-
-            player.scores.append(score)
 
     def deal_cards(self):
         hand_size = 13
@@ -356,6 +319,7 @@ class GameState(BaseModel):
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "current_round": self.current_round,
             "discard_pile": self.discard_pile,
             "game_phase": self.game_phase.name,
             "turn_player": self.turn_player,
@@ -443,6 +407,57 @@ def generate_session_id() -> str:
 def get_card_sort_key(card: str) -> tuple[int, int]:
     rank, suit = parse_card(card)
     return (SUIT_ORDER.index(suit), rank)
+
+
+def get_card_count_penalty(tricks: List[Trick]) -> int:
+    penalty = 0
+
+    for trick in tricks:
+        penalty += len(trick.cards)
+
+    return penalty
+
+
+def get_hearts_penalty(tricks: List[Trick]) -> int:
+    penalty = 0
+
+    for trick in tricks:
+        for card in trick.cards:
+            if parse_card(card)[1] == "H":
+                penalty += 10
+
+    return penalty
+
+
+def get_queens_penalty(tricks: List[Trick]) -> int:
+    penalty = 0
+
+    for trick in tricks:
+        for card in trick.cards:
+            if card in ["QC", "QD", "QH", "QS"]:
+                penalty += 25
+
+    return penalty
+
+
+def get_ks_penalty(tricks: List[Trick]) -> int:
+    penalty = 0
+
+    for trick in tricks:
+        if "KS" in trick.cards:
+            penalty += 50
+
+    return penalty
+
+
+def get_last_trick_penalty(tricks: List[Trick]) -> int:
+    penalty = 0
+
+    for trick in tricks:
+        if trick.is_last_trick:
+            penalty += 100
+
+    return penalty
 
 
 def has_suit_in_hand(suit: str, hand: List[str]) -> bool:
