@@ -74,7 +74,7 @@ function App() {
 
   const renderStartButton = () => {
     switch (gameState?.game_phase) {
-      case 'WAITING':
+      case 'NOT_STARTED':
         return <button onClick={() => handleAction('start_game')}>Start game</button>
       case 'GAME_OVER':
         return <button onClick={() => handleAction('restart_game')}>Restart game</button>
