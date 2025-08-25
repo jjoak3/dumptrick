@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from logging import error
 from nanoid import generate
 from pydantic import BaseModel
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 import asyncio
 import json
 import random
@@ -76,12 +76,12 @@ class Player(BaseModel):
 
     hand: List[str] = []
     is_winner: bool = False
-    name: str
+    name: str = ""
     scores: List[int] = []
-    session_id: str
+    session_id: str = ""
     total_score: int = 0
     tricks: List[Trick] = []
-    type: PlayerType
+    type: PlayerType = PlayerType.HUMAN
     websocket: WebSocket = None
 
     def set_websocket(self, websocket: WebSocket):
