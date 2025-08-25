@@ -31,17 +31,6 @@ MAX_PLAYERS = 4
 SUIT_ORDER = ["D", "C", "H", "S"]
 
 
-class GamePhase(Enum):
-    NOT_STARTED = auto()
-    STARTED = auto()
-    GAME_OVER = auto()
-
-
-class PlayerType(Enum):
-    BOT = auto()
-    HUMAN = auto()
-
-
 class Trick(BaseModel):
     cards: List[str] = []
     is_last_trick: bool = False
@@ -71,6 +60,16 @@ class Trick(BaseModel):
             self.winning_card = card
             self.winner = session_id
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "cards": self.cards,
+        }
+
+
+class PlayerType(Enum):
+    BOT = auto()
+    HUMAN = auto()
+
 
 class Player(BaseModel):
     hand: List[str] = []
@@ -82,25 +81,120 @@ class Player(BaseModel):
     tricks: List[Trick] = []
     type: PlayerType
 
+    def get_card_count_penalty(self) -> int:
+        penalty = 0
+
+        for trick in self.tricks:
+            penalty += len(trick.cards)
+
+        return penalty
+
+    def get_hearts_penalty(self) -> int:
+        penalty = 0
+
+        for trick in self.tricks:
+            for card in trick.cards:
+                if parse_card(card)[1] == "H":
+                    penalty += 10
+
+        return penalty
+
+    def get_queens_penalty(self) -> int:
+        penalty = 0
+
+        for trick in self.tricks:
+            for card in trick.cards:
+                if card in ["QC", "QD", "QH", "QS"]:
+                    penalty += 25
+
+        return penalty
+
+    def get_ks_penalty(self) -> int:
+        penalty = 0
+
+        for trick in self.tricks:
+            if "KS" in trick.cards:
+                penalty += 50
+
+        return penalty
+
+    def get_last_trick_penalty(self) -> int:
+        penalty = 0
+
+        for trick in self.tricks:
+            if trick.is_last_trick:
+                penalty += 100
+
+        return penalty
+
+    def is_bot(self) -> bool:
+        return self.type == PlayerType.BOT
+
+    def take_trick(self, trick: Trick):
+        self.tricks.append(trick)
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "hand": self.hand,
-            "name": self.name,
             "is_winner": self.is_winner,
+            "name": self.name,
             "scores": self.scores,
             "session_id": self.session_id,
-            "total_score": self.total_score,
-            "tricks": [trick.model_dump() for trick in self.tricks],
-            "type": self.type.name,
+            "total_score": sum(self.scores),
+            "tricks": [trick.to_dict() for trick in self.tricks],
         }
 
 
+class Players(Dict[str, Player]):
+    def add_bot(self, session_id: str):
+        self[session_id] = Player(
+            name=f"Bot {session_id}",
+            session_id=session_id,
+            type=PlayerType.BOT,
+        )
+
+    def add_player(self, session_id: str):
+        self[session_id] = Player(
+            name=f"Player {session_id}",
+            session_id=session_id,
+            type=PlayerType.HUMAN,
+        )
+
+    def clear_scores(self):
+        for player in self.values():
+            player.scores.clear()
+
+    def clear_tricks(self):
+        for player in self.values():
+            player.tricks.clear()
+
+    def get_total_scores(self):
+        return {session_id: sum(player.scores) for session_id, player in self.items()}
+
+    def set_winners(self):
+        total_scores = self.get_total_scores()
+        lowest_score = min(total_scores.values())
+
+        for session_id, score in total_scores.items():
+            if score == lowest_score:
+                self[session_id].is_winner = True
+
+    def to_dict(self) -> Dict[str, Player]:
+        return {session_id: player.to_dict() for session_id, player in self.items()}
+
+
+class GamePhase(Enum):
+    NOT_STARTED = auto()
+    STARTED = auto()
+    GAME_OVER = auto()
+
+
 class GameState(BaseModel):
+    current_round: int = 0
     current_trick: Trick = Trick()
     deck: List[str] = DECK.copy()
     discard_pile: List[str] = []
     game_phase: GamePhase = GamePhase.NOT_STARTED
-    round: int = 0
     round_start_index: int = 0
     turn_order: List[str] = []
     turn_order_index: int = 0
@@ -110,7 +204,7 @@ class GameState(BaseModel):
     def start_game(self):
         if len(players) < 4:
             while len(players) < 4:
-                add_bot()
+                players.add_bot(generate_session_id())
 
         self.game_phase = GamePhase.STARTED
 
@@ -122,12 +216,12 @@ class GameState(BaseModel):
 
     def end_game(self):
         self.game_phase = GamePhase.GAME_OVER
-        get_winners()
+        players.set_winners()
 
     def restart_game(self):
         self.game_phase = GamePhase.STARTED
 
-        self.round = 0
+        self.current_round = 0
         self.round_start_index = 0
 
         self.trick_start_index = 0
@@ -142,7 +236,8 @@ class GameState(BaseModel):
         self.shuffle_deck()
         self.deal_cards()
 
-        clear_player_scores()
+        players.clear_scores()
+        players.clear_tricks()
 
     def advance_turn(self):
         self.turn_order_index = self.increment_index(self.turn_order_index)
@@ -154,7 +249,12 @@ class GameState(BaseModel):
         if self.is_round_over():
             self.advance_round()
 
-        if is_player_bot(self.turn_player):
+        next_player = players.get(self.turn_player)
+        if (
+            self.game_phase == GamePhase.STARTED
+            and next_player
+            and next_player.is_bot()
+        ):
             asyncio.create_task(schedule_bot_turn(self.turn_player))
 
     def advance_trick(self):
@@ -164,7 +264,7 @@ class GameState(BaseModel):
         if self.is_round_over():
             self.current_trick.is_last_trick = True
 
-        award_trick_to_player(self.current_trick, self.current_trick.winner)
+        players.get(self.current_trick.winner).take_trick(self.current_trick)
 
         self.turn_order_index = self.turn_order.index(self.current_trick.winner)
         self.trick_start_index = self.turn_order_index
@@ -173,10 +273,10 @@ class GameState(BaseModel):
         self.current_trick = Trick()
 
     def advance_round(self):
-        self.round += 1
-        calculate_scores()
+        self.current_round += 1
+        self.calculate_scores()
 
-        if self.round >= 6:
+        if self.current_round >= 6:
             return self.end_game()
 
         self.round_start_index = self.increment_index(self.round_start_index)
@@ -189,7 +289,30 @@ class GameState(BaseModel):
         self.shuffle_deck()
         self.deal_cards()
 
-        clear_player_tricks()
+        players.clear_tricks()
+
+    def calculate_scores(self):
+        for player in players.values():
+            score = 0
+
+            if self.current_round == 1:
+                score += player.get_card_count_penalty()
+            elif self.current_round == 2:
+                score += player.get_hearts_penalty()
+            elif self.current_round == 3:
+                score += player.get_queens_penalty()
+            elif self.current_round == 4:
+                score += player.get_ks_penalty()
+            elif self.current_round == 5:
+                score += player.get_last_trick_penalty()
+            elif self.current_round == 6:
+                score += player.get_card_count_penalty()
+                score += player.get_hearts_penalty()
+                score += player.get_queens_penalty()
+                score += player.get_ks_penalty()
+                score += player.get_last_trick_penalty()
+
+            player.scores.append(score)
 
     def deal_cards(self):
         hand_size = 13
@@ -231,7 +354,7 @@ class GameState(BaseModel):
 
 
 game_state = GameState()
-players: Dict[str, Player] = {}
+players = Players()
 session_to_socket: Dict[str, WebSocket] = {}
 
 
@@ -249,8 +372,8 @@ async def websocket_endpoint(websocket: WebSocket):
         session_id = generate_session_id()
 
         if len(players) < MAX_PLAYERS:
-            add_player(session_id)
-            await broadcast({"players": get_players()})
+            players.add_player(session_id)
+            await broadcast({"players": players.to_dict()})
         else:
             await websocket.close()
             return
@@ -260,7 +383,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.send_json(
         {
             "game_state": game_state.to_dict(),
-            "players": get_players(),
+            "players": players.to_dict(),
             "session_id": session_id,
         }
     )
@@ -283,7 +406,7 @@ async def websocket_endpoint(websocket: WebSocket):
             await broadcast(
                 {
                     "game_state": game_state.to_dict(),
-                    "players": get_players(),
+                    "players": players.to_dict(),
                 }
             )
     except WebSocketDisconnect:
@@ -292,6 +415,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 """Helpers"""
+
+
+def generate_session_id() -> str:
+    return generate(alphabet="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", size=4)
 
 
 def get_card_sort_key(card: str) -> tuple[int, int]:
@@ -338,96 +465,13 @@ def disconnect_player(session_id: str):
     del session_to_socket[session_id]
 
 
-def generate_session_id() -> str:
-    return generate(alphabet="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", size=4)
-
-
-"""Players"""
-
-
-def add_player(session_id: str):
-    players[session_id] = Player(
-        name=f"Player {session_id}",
-        session_id=session_id,
-        type=PlayerType.HUMAN,
-    )
-
-
-def award_trick_to_player(trick: Trick, session_id: str):
-    player = players.get(session_id)
-
-    if player:
-        player.tricks.append(trick)
-
-
-def clear_player_scores():
-    for player in players.values():
-        player.scores.clear()
-
-
-def clear_player_tricks():
-    for player in players.values():
-        player.tricks.clear()
-
-
-def get_players() -> Dict[str, Player]:
-    return {player.session_id: player.to_dict() for player in players.values()}
-
-
-"""Bots"""
-
-
-def add_bot():
-    session_id = generate_session_id()
-
-    players[session_id] = Player(
-        name=f"Bot {session_id}",
-        session_id=session_id,
-        type=PlayerType.BOT,
-    )
-
-
-def is_player_bot(session_id: str) -> bool:
-    player = players.get(session_id)
-
-    if player and player.type == PlayerType.BOT:
-        return True
-
-    return False
-
-
-async def schedule_bot_turn(session_id: str):
-    player = players.get(session_id)
-    if not player:
-        return
-
-    leading_suit = game_state.current_trick.leading_suit
-
-    matching_cards = []
-    for card in player.hand:
-        if parse_card(card)[1] == leading_suit:
-            matching_cards.append(card)
-
-    if matching_cards:
-        card_to_play = min(matching_cards, key=parse_card)
-    else:
-        card_to_play = max(player.hand, key=parse_card)
-
-    await asyncio.sleep(0.25)
-    await simulate_message(session_id, card_to_play)
-
-
-async def simulate_message(session_id: str, card: str):
-    await play_card(session_id, card)
-
-
-"""Game state"""
+"""Play actions"""
 
 
 async def play_card(session_id: str, card: str):
     player = players.get(session_id)
 
-    if not player and card not in player.hand:
+    if not player or card not in player.hand:
         return
 
     suit = parse_card(card)[1]
@@ -450,7 +494,7 @@ async def play_card(session_id: str, card: str):
     await broadcast(
         {
             "game_state": game_state.to_dict(),
-            "players": get_players(),
+            "players": players.to_dict(),
         }
     )
 
@@ -460,97 +504,30 @@ async def play_card(session_id: str, card: str):
     await broadcast(
         {
             "game_state": game_state.to_dict(),
-            "players": get_players(),
+            "players": players.to_dict(),
         }
     )
 
 
-"""Scoring"""
+async def schedule_bot_turn(session_id: str):
+    player = players.get(session_id)
+    if not player:
+        return
 
+    leading_suit = game_state.current_trick.leading_suit
 
-def calculate_scores():
-    current_round = game_state.round
+    matching_cards = []
+    for card in player.hand:
+        if parse_card(card)[1] == leading_suit:
+            matching_cards.append(card)
 
-    for player in players.values():
-        score = 0
+    if matching_cards:
+        card_to_play = min(matching_cards, key=parse_card)
+    else:
+        card_to_play = max(player.hand, key=parse_card)
 
-        if current_round == 1:
-            score += get_trick_count_penalty(player.tricks)
-        elif current_round == 2:
-            score += get_hearts_penalty(player.tricks)
-        elif current_round == 3:
-            score += get_queens_penalty(player.tricks)
-        elif current_round == 4:
-            score += get_ks_penalty(player.tricks)
-        elif current_round == 5:
-            score += get_last_trick_penalty(player.tricks)
-        elif current_round == 6:
-            score += get_trick_count_penalty(player.tricks)
-            score += get_hearts_penalty(player.tricks)
-            score += get_queens_penalty(player.tricks)
-            score += get_ks_penalty(player.tricks)
-            score += get_last_trick_penalty(player.tricks)
-
-        player.scores.append(score)
-
-
-def get_trick_count_penalty(tricks: List[Trick]) -> int:
-    return len(tricks)
-
-
-def get_hearts_penalty(tricks: List[Trick]) -> int:
-    penalty = 0
-
-    for trick in tricks:
-        for card in trick.cards:
-            if parse_card(card)[1] == "H":
-                penalty += 10
-
-    return penalty
-
-
-def get_queens_penalty(tricks: List[Trick]) -> int:
-    penalty = 0
-
-    for trick in tricks:
-        for card in trick.cards:
-            if card in ["QC", "QD", "QH", "QS"]:
-                penalty += 25
-
-    return penalty
-
-
-def get_ks_penalty(tricks: List[Trick]) -> int:
-    penalty = 0
-
-    for trick in tricks:
-        if "KS" in trick.cards:
-            penalty += 50
-
-    return penalty
-
-
-def get_last_trick_penalty(tricks: List[Trick]) -> int:
-    penalty = 0
-
-    for trick in tricks:
-        if trick.is_last_trick:
-            penalty += 100
-
-    return penalty
-
-
-def get_winners():
-    total_scores = []
-
-    for player in players.values():
-        total_scores.append((player.session_id, sum(player.scores)))
-
-    lowest_score = min([score for _, score in total_scores])
-
-    for session_id, score in total_scores:
-        if score == lowest_score:
-            players[session_id].is_winner = True
+    await asyncio.sleep(0.25)
+    await play_card(session_id, card_to_play)
 
 
 if __name__ == "__main__":
