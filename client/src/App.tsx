@@ -85,7 +85,7 @@ function App() {
 
   return (
     <>
-      <pre className='app'>
+      <div className='app'>
         <p>{renderStartButton()}</p>
         {gameState && players && (
           <Scoreboard //
@@ -116,7 +116,7 @@ function App() {
             tricks={players[sessionId].tricks}
           />
         )}
-      </pre>
+      </div>
     </>
   )
 }
@@ -131,40 +131,42 @@ interface ScoreboardProps {
 
 function Scoreboard({ gameState, players, sessionId }: ScoreboardProps) {
   return (
-    <table className='scoreboard'>
-      <thead>
-        <tr>
-          <th></th>
-          <th></th>
-          <th className='col-score'>{'  '}R1</th>
-          <th className='col-score'>{'  '}R2</th>
-          <th className='col-score'>{'  '}R3</th>
-          <th className='col-score'>{'  '}R4</th>
-          <th className='col-score'>{'  '}R5</th>
-          <th className='col-score'>{'  '}R6</th>
-          <th className='col-score'> TTL</th>
-        </tr>
-      </thead>
-      <tbody>
-        {Object.entries(players).map(([id, player]) => (
-          <tr key={id}>
-            <td>{player.session_id == gameState.turn_player ? '*' : ' '}</td>
-            <td>
-              {player.name}
-              {player.session_id == sessionId && ' (You)'}
-              {gameState.game_phase == 'GAME_OVER' && player.is_winner && ' 👑'}
-            </td>
-            <td className='col-score'>{player.scores[0] != undefined ? player.scores[0] : '-'}</td>
-            <td className='col-score'>{player.scores[1] != undefined ? player.scores[1] : '-'}</td>
-            <td className='col-score'>{player.scores[2] != undefined ? player.scores[2] : '-'}</td>
-            <td className='col-score'>{player.scores[3] != undefined ? player.scores[3] : '-'}</td>
-            <td className='col-score'>{player.scores[4] != undefined ? player.scores[4] : '-'}</td>
-            <td className='col-score'>{player.scores[5] != undefined ? player.scores[5] : '-'}</td>
-            <td className='col-score'>{player.total_score != undefined ? player.total_score : '-'}</td>
+    <pre className='scoreboard-wrapper'>
+      <table className='scoreboard'>
+        <thead>
+          <tr>
+            <th></th>
+            <th></th>
+            <th className='col-score'>{'  '}R1</th>
+            <th className='col-score'>{'  '}R2</th>
+            <th className='col-score'>{'  '}R3</th>
+            <th className='col-score'>{'  '}R4</th>
+            <th className='col-score'>{'  '}R5</th>
+            <th className='col-score'>{'  '}R6</th>
+            <th className='col-score'> TTL</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {Object.entries(players).map(([id, player]) => (
+            <tr key={id}>
+              <td>{player.session_id == gameState.turn_player ? '*' : ' '}</td>
+              <td>
+                {player.name}
+                {player.session_id == sessionId && ' (You)'}
+                {gameState.game_phase == 'GAME_OVER' && player.is_winner && ' 👑'}
+              </td>
+              <td className='col-score'>{player.scores[0] != undefined ? player.scores[0] : '-'}</td>
+              <td className='col-score'>{player.scores[1] != undefined ? player.scores[1] : '-'}</td>
+              <td className='col-score'>{player.scores[2] != undefined ? player.scores[2] : '-'}</td>
+              <td className='col-score'>{player.scores[3] != undefined ? player.scores[3] : '-'}</td>
+              <td className='col-score'>{player.scores[4] != undefined ? player.scores[4] : '-'}</td>
+              <td className='col-score'>{player.scores[5] != undefined ? player.scores[5] : '-'}</td>
+              <td className='col-score'>{player.total_score != undefined ? player.total_score : '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </pre>
   )
 }
 
