@@ -84,6 +84,19 @@ class Player(BaseModel):
     type: PlayerType = PlayerType.HUMAN
     websocket: WebSocket = None
 
+    def choose_card(self) -> str:
+        leading_suit = game_state.current_trick.leading_suit
+
+        matching_cards = []
+        for card in self.hand:
+            if parse_card(card)[1] == leading_suit:
+                matching_cards.append(card)
+
+        if matching_cards:
+            return min(matching_cards, key=parse_card)
+        else:
+            return max(self.hand, key=parse_card)
+
     def clear_websocket(self):
         self.websocket = None
 
@@ -118,7 +131,7 @@ class Player(BaseModel):
             }
         )
 
-        await asyncio.sleep(0.25)
+        await asyncio.sleep(0.5)  # Gives players time to see the played card
         game_state.advance_turn()
 
         await broadcast(
@@ -295,7 +308,8 @@ class GameState(BaseModel):
             and next_player
             and next_player.is_bot()
         ):
-            asyncio.create_task(schedule_bot_turn(self.turn_player))
+            bot = next_player
+            asyncio.create_task(bot.play_card(bot.choose_card()))
 
     def advance_trick(self):
         self.current_trick.cards = self.discard_pile.copy()
@@ -520,30 +534,6 @@ def parse_card(card: str) -> tuple[int, str]:
         rank = "11"
 
     return int(rank), suit
-
-
-"""Play actions"""
-
-
-async def schedule_bot_turn(session_id: str):
-    player = players.get(session_id)
-    if not player:
-        return
-
-    leading_suit = game_state.current_trick.leading_suit
-
-    matching_cards = []
-    for card in player.hand:
-        if parse_card(card)[1] == leading_suit:
-            matching_cards.append(card)
-
-    if matching_cards:
-        card_to_play = min(matching_cards, key=parse_card)
-    else:
-        card_to_play = max(player.hand, key=parse_card)
-
-    await asyncio.sleep(0.25)
-    await players.get(session_id).play_card(card_to_play)
 
 
 if __name__ == "__main__":
