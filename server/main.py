@@ -87,8 +87,46 @@ class Player(BaseModel):
     def clear_websocket(self):
         self.websocket = None
 
+    def has_suit_in_hand(self, suit: str) -> bool:
+        return any(parse_card(card)[1] == suit for card in self.hand)
+
     def is_bot(self) -> bool:
         return self.type == PlayerType.BOT
+
+    async def play_card(self, card: str):
+        if card not in self.hand:
+            return
+
+        suit = parse_card(card)[1]
+        leading_suit = game_state.current_trick.leading_suit
+        if (
+            leading_suit
+            and self.has_suit_in_hand(leading_suit)
+            and suit != leading_suit
+        ):
+            return
+
+        self.hand.remove(card)
+        game_state.discard_pile.append(card)
+        game_state.current_trick.update_trick(card, self.session_id)
+        game_state.turn_phase = TurnPhase.TURN_COMPLETE
+
+        await broadcast(
+            {
+                "game_state": game_state.to_dict(),
+                "players": players.to_dict(),
+            }
+        )
+
+        await asyncio.sleep(0.25)
+        game_state.advance_turn()
+
+        await broadcast(
+            {
+                "game_state": game_state.to_dict(),
+                "players": players.to_dict(),
+            }
+        )
 
     def set_websocket(self, websocket: WebSocket):
         self.websocket = websocket
@@ -378,7 +416,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 game_state.start_game()
 
             elif action == "play_card":
-                await play_card(session_id, card)
+                await players.get(session_id).play_card(card)
 
             elif action == "restart_game":
                 game_state.restart_game()
@@ -468,10 +506,6 @@ def get_last_trick_penalty(tricks: List[Trick]) -> int:
     return penalty
 
 
-def has_suit_in_hand(suit: str, hand: List[str]) -> bool:
-    return any(parse_card(card)[1] == suit for card in hand)
-
-
 def parse_card(card: str) -> tuple[int, str]:
     rank = card[:-1]
     suit = card[-1]
@@ -489,45 +523,6 @@ def parse_card(card: str) -> tuple[int, str]:
 
 
 """Play actions"""
-
-
-async def play_card(session_id: str, card: str):
-    player = players.get(session_id)
-
-    if not player or card not in player.hand:
-        return
-
-    suit = parse_card(card)[1]
-    leading_suit = game_state.current_trick.leading_suit
-
-    if (
-        leading_suit
-        and has_suit_in_hand(leading_suit, player.hand)
-        and suit != leading_suit
-    ):
-        return
-
-    player.hand.remove(card)
-    game_state.discard_pile.append(card)
-    game_state.current_trick.update_trick(card, session_id)
-    game_state.turn_phase = TurnPhase.TURN_COMPLETE
-
-    await broadcast(
-        {
-            "game_state": game_state.to_dict(),
-            "players": players.to_dict(),
-        }
-    )
-
-    await asyncio.sleep(0.25)
-    game_state.advance_turn()
-
-    await broadcast(
-        {
-            "game_state": game_state.to_dict(),
-            "players": players.to_dict(),
-        }
-    )
 
 
 async def schedule_bot_turn(session_id: str):
@@ -548,7 +543,7 @@ async def schedule_bot_turn(session_id: str):
         card_to_play = max(player.hand, key=parse_card)
 
     await asyncio.sleep(0.25)
-    await play_card(session_id, card_to_play)
+    await players.get(session_id).play_card(card_to_play)
 
 
 if __name__ == "__main__":
