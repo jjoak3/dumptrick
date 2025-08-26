@@ -100,11 +100,57 @@ class Player(BaseModel):
     def clear_websocket(self):
         self.websocket = None
 
-    def has_suit_in_hand(self, suit: str) -> bool:
-        return any(parse_card(card)[1] == suit for card in self.hand)
+    def get_card_count_penalty(self) -> int:
+        penalty = 0
+
+        for trick in self.tricks:
+            penalty += len(trick.cards)
+
+        return penalty
+
+    def get_hearts_penalty(self) -> int:
+        penalty = 0
+
+        for trick in self.tricks:
+            for card in trick.cards:
+                if parse_card(card)[1] == "H":
+                    penalty += 10
+
+        return penalty
+
+    def get_queens_penalty(self) -> int:
+        penalty = 0
+
+        for trick in self.tricks:
+            for card in trick.cards:
+                if card in ["QC", "QD", "QH", "QS"]:
+                    penalty += 25
+
+        return penalty
+
+    def get_ks_penalty(self) -> int:
+        penalty = 0
+
+        for trick in self.tricks:
+            if "KS" in trick.cards:
+                penalty += 50
+
+        return penalty
+
+    def get_last_trick_penalty(self) -> int:
+        penalty = 0
+
+        for trick in self.tricks:
+            if trick.is_last_trick:
+                penalty += 100
+
+        return penalty
 
     def is_bot(self) -> bool:
         return self.type == PlayerType.BOT
+
+    def is_suit_in_hand(self, suit: str) -> bool:
+        return any(parse_card(card)[1] == suit for card in self.hand)
 
     async def play_card(self, card: str):
         if card not in self.hand:
@@ -112,11 +158,7 @@ class Player(BaseModel):
 
         suit = parse_card(card)[1]
         leading_suit = game_state.current_trick.leading_suit
-        if (
-            leading_suit
-            and self.has_suit_in_hand(leading_suit)
-            and suit != leading_suit
-        ):
+        if leading_suit and self.is_suit_in_hand(leading_suit) and suit != leading_suit:
             return
 
         self.hand.remove(card)
@@ -179,25 +221,25 @@ class Players(Dict[str, Player]):
             score = 0
 
             if game_state.current_round == 1:
-                score += get_card_count_penalty(player.tricks)
+                score += player.get_card_count_penalty()
             elif game_state.current_round == 2:
-                score += get_card_count_penalty(player.tricks)
-                score += get_hearts_penalty(player.tricks)
+                score += player.get_card_count_penalty()
+                score += player.get_hearts_penalty()
             elif game_state.current_round == 3:
-                score += get_card_count_penalty(player.tricks)
-                score += get_hearts_penalty(player.tricks)
-                score += get_queens_penalty(player.tricks)
+                score += player.get_card_count_penalty()
+                score += player.get_hearts_penalty()
+                score += player.get_queens_penalty()
             elif game_state.current_round == 4:
-                score += get_card_count_penalty(player.tricks)
-                score += get_hearts_penalty(player.tricks)
-                score += get_queens_penalty(player.tricks)
-                score += get_ks_penalty(player.tricks)
+                score += player.get_card_count_penalty()
+                score += player.get_hearts_penalty()
+                score += player.get_queens_penalty()
+                score += player.get_ks_penalty()
             elif game_state.current_round == 5:
-                score += get_card_count_penalty(player.tricks)
-                score += get_hearts_penalty(player.tricks)
-                score += get_queens_penalty(player.tricks)
-                score += get_ks_penalty(player.tricks)
-                score += get_last_trick_penalty(player.tricks)
+                score += player.get_card_count_penalty()
+                score += player.get_hearts_penalty()
+                score += player.get_queens_penalty()
+                score += player.get_ks_penalty()
+                score += player.get_last_trick_penalty()
 
             player.scores.append(score)
 
@@ -232,7 +274,7 @@ class Players(Dict[str, Player]):
 class GamePhase(Enum):
     NOT_STARTED = auto()
     STARTED = auto()
-    GAME_OVER = auto()
+    GAME_COMPLETE = auto()
 
 
 class TurnPhase(Enum):
@@ -253,7 +295,7 @@ class GameState(BaseModel):
     turn_player: str = ""
     trick_start_index: int = 0
 
-    def start_game(self):
+    def start(self):
         if len(players) < 4:
             while len(players) < 4:
                 players.add_bot(generate_session_id())
@@ -266,11 +308,11 @@ class GameState(BaseModel):
         self.shuffle_deck()
         self.deal_cards()
 
-    def end_game(self):
-        self.game_phase = GamePhase.GAME_OVER
+    def end(self):
+        self.game_phase = GamePhase.GAME_COMPLETE
         players.set_winners()
 
-    def restart_game(self):
+    def restart(self):
         self.game_phase = GamePhase.STARTED
 
         self.current_round = 0
@@ -331,7 +373,7 @@ class GameState(BaseModel):
         players.calculate_scores()
 
         if self.current_round >= 5:
-            return self.end_game()
+            return self.end()
 
         self.round_start_index = self.increment_index(self.round_start_index)
 
@@ -352,7 +394,11 @@ class GameState(BaseModel):
             player.hand = self.deck[:hand_size]
             self.deck[:] = self.deck[hand_size:]
 
-            player.hand.sort(key=get_card_sort_key)
+            player.hand.sort(key=self.get_card_sort_key)
+
+    def get_card_sort_key(self, card: str) -> tuple[int, int]:
+        rank, suit = parse_card(card)
+        return (SUIT_ORDER.index(suit), rank)
 
     def increment_index(self, index: int) -> int:
         return (index + 1) % len(self.turn_order)
@@ -427,13 +473,13 @@ async def websocket_endpoint(websocket: WebSocket):
             card = json.loads(message).get("card")
 
             if action == "start_game":
-                game_state.start_game()
+                game_state.start()
 
             elif action == "play_card":
                 await players.get(session_id).play_card(card)
 
             elif action == "restart_game":
-                game_state.restart_game()
+                game_state.restart()
 
             await broadcast(
                 {
@@ -462,62 +508,6 @@ async def broadcast(payload: Dict[str, Any]):
 
 def generate_session_id() -> str:
     return generate(alphabet="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", size=4)
-
-
-def get_card_sort_key(card: str) -> tuple[int, int]:
-    rank, suit = parse_card(card)
-    return (SUIT_ORDER.index(suit), rank)
-
-
-def get_card_count_penalty(tricks: List[Trick]) -> int:
-    penalty = 0
-
-    for trick in tricks:
-        penalty += len(trick.cards)
-
-    return penalty
-
-
-def get_hearts_penalty(tricks: List[Trick]) -> int:
-    penalty = 0
-
-    for trick in tricks:
-        for card in trick.cards:
-            if parse_card(card)[1] == "H":
-                penalty += 10
-
-    return penalty
-
-
-def get_queens_penalty(tricks: List[Trick]) -> int:
-    penalty = 0
-
-    for trick in tricks:
-        for card in trick.cards:
-            if card in ["QC", "QD", "QH", "QS"]:
-                penalty += 25
-
-    return penalty
-
-
-def get_ks_penalty(tricks: List[Trick]) -> int:
-    penalty = 0
-
-    for trick in tricks:
-        if "KS" in trick.cards:
-            penalty += 50
-
-    return penalty
-
-
-def get_last_trick_penalty(tricks: List[Trick]) -> int:
-    penalty = 0
-
-    for trick in tricks:
-        if trick.is_last_trick:
-            penalty += 100
-
-    return penalty
 
 
 def parse_card(card: str) -> tuple[int, str]:

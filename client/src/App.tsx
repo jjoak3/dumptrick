@@ -78,7 +78,7 @@ function App() {
     switch (gameState?.game_phase) {
       case 'NOT_STARTED':
         return <button onClick={() => handleAction('start_game')}>Start game</button>
-      case 'GAME_OVER':
+      case 'GAME_COMPLETE':
         return <button onClick={() => handleAction('restart_game')}>Restart game</button>
       default:
         return null
@@ -158,7 +158,7 @@ function Scoreboard({ gameState, players, sessionId }: ScoreboardProps) {
               <td>
                 {player.name}
                 {player.session_id == sessionId && ' (You)'}
-                {gameState.game_phase == 'GAME_OVER' && player.is_winner && ' 👑'}
+                {gameState.game_phase == 'GAME_COMPLETE' && player.is_winner && ' 👑'}
               </td>
               <td className='col-score'>{player.scores[0] != undefined ? player.scores[0] : '-'}</td>
               <td className='col-score'>{player.scores[1] != undefined ? player.scores[1] : '-'}</td>
