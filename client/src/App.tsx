@@ -5,6 +5,7 @@ interface GameState {
   current_round: number
   discard_pile: string[]
   game_phase: string
+  turn_phase: string
   turn_player: string
 }
 
@@ -284,7 +285,7 @@ function Hand({ gameState, handleAction, player }: HandProps) {
       {player.hand.map((card) => (
         <Card //
           card={card}
-          disabled={gameState.turn_player != player.session_id}
+          disabled={gameState.turn_phase == 'TURN_COMPLETE' || gameState.turn_player != player.session_id}
           key={card}
           onClick={() => {
             if (gameState.turn_player == player.session_id) handleAction('play_card', card)

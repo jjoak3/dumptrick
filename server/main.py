@@ -184,6 +184,11 @@ class GamePhase(Enum):
     GAME_OVER = auto()
 
 
+class TurnPhase(Enum):
+    NOT_STARTED = auto()
+    TURN_COMPLETE = auto()
+
+
 class GameState(BaseModel):
     current_round: int = 0
     current_trick: Trick = Trick()
@@ -193,6 +198,7 @@ class GameState(BaseModel):
     round_start_index: int = 0
     turn_order: List[str] = []
     turn_order_index: int = 0
+    turn_phase: TurnPhase = TurnPhase.NOT_STARTED
     turn_player: str = ""
     trick_start_index: int = 0
 
@@ -237,6 +243,7 @@ class GameState(BaseModel):
     def advance_turn(self):
         self.turn_order_index = self.increment_index(self.turn_order_index)
         self.set_turn_player()
+        self.turn_phase = TurnPhase.NOT_STARTED
 
         if self.is_trick_over():
             self.advance_trick()
@@ -322,6 +329,7 @@ class GameState(BaseModel):
             "current_round": self.current_round,
             "discard_pile": self.discard_pile,
             "game_phase": self.game_phase.name,
+            "turn_phase": self.turn_phase.name,
             "turn_player": self.turn_player,
         }
 
@@ -499,12 +507,10 @@ async def play_card(session_id: str, card: str):
     ):
         return
 
-    # TODO: Add turn_phase enum to handle the end of a turn rather than resetting turn_player
-    game_state.turn_player = ""
     player.hand.remove(card)
     game_state.discard_pile.append(card)
-
     game_state.current_trick.update_trick(card, session_id)
+    game_state.turn_phase = TurnPhase.TURN_COMPLETE
 
     await broadcast(
         {
