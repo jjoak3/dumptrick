@@ -74,21 +74,17 @@ function App() {
     if (websocket) websocket.send(message)
   }
 
-  const renderStartButton = () => {
-    switch (gameState?.game_phase) {
-      case 'NOT_STARTED':
-        return <button onClick={() => handleAction('start_game')}>Start game</button>
-      case 'GAME_COMPLETE':
-        return <button onClick={() => handleAction('restart_game')}>Restart game</button>
-      default:
-        return null
-    }
-  }
-
   return (
     <>
       <div className='app'>
-        <p>{renderStartButton()}</p>
+        🚛 dumptrick
+        {gameState?.game_phase == 'NOT_STARTED' && players?.[playerId] && (
+          <Lobby //
+            handleAction={handleAction}
+            players={players}
+            playerId={playerId}
+          />
+        )}
         {gameState?.game_phase == 'STARTED' && players?.[playerId] && (
           <GameBoard //
             gameState={gameState}
@@ -103,6 +99,30 @@ function App() {
 }
 
 export default App
+
+interface LobbyProps {
+  handleAction: (action: string) => void
+  players: Players
+  playerId: string
+}
+
+function Lobby({ handleAction, players, playerId }: LobbyProps) {
+  return (
+    <div className='lobby'>
+      <p>Players:</p>
+      <ol>
+        {Object.values(players).map((player) => (
+          <li key={player.player_id}>
+            {player.name} {player.player_id === playerId && '(You)'}
+          </li>
+        ))}
+      </ol>
+      <p>
+        <button onClick={() => handleAction('start_game')}>Start game</button>
+      </p>
+    </div>
+  )
+}
 
 interface GameBoardProps {
   gameState: GameState
@@ -122,6 +142,11 @@ function GameBoard({ gameState, players, playerId, handleAction }: GameBoardProp
       <Penalties //
         gameState={gameState}
       />
+      {gameState.game_phase == 'GAME_COMPLETE' && (
+        <p>
+          <button onClick={() => handleAction('restart_game')}>Restart game</button>
+        </p>
+      )}
       <p>***</p>
       <DiscardPile //
         gameState={gameState}

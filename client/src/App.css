@@ -53,11 +53,13 @@ button {
   font-family: inherit;
   font-size: inherit;
   padding: 0;
+  text-decoration: underline;
   width: auto;
 }
 
-button:focus {
+button:has(.card) {
   outline: none;
+  text-decoration: none;
 }
 
 button:disabled > .card {
@@ -101,6 +103,15 @@ details.penalties-wrapper > summary::before {
 
 details.penalties-wrapper[open] > summary::before {
   content: '- ';
+}
+
+ol {
+  margin-top: var(--spacing-4);
+  margin-left: var(--spacing-4);
+}
+
+ol > li {
+  margin-left: var(--spacing-4);
 }
 
 p {
