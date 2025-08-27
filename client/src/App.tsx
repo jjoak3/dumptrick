@@ -89,37 +89,12 @@ function App() {
     <>
       <div className='app'>
         <p>{renderStartButton()}</p>
-        {gameState && players && (
-          <Scoreboard //
-            gameState={gameState}
-            players={players}
-            playerId={playerId}
-          />
-        )}
-        {gameState && (
-          <Penalties //
-            gameState={gameState}
-          />
-        )}
-        <p>***</p>
-        {gameState && (
-          <DiscardPile //
-            gameState={gameState}
-          />
-        )}
-        <p>***</p>
-        <p>My hand:</p>
-        {gameState && players && players[playerId] && (
-          <Hand //
+        {gameState?.game_phase == 'STARTED' && players?.[playerId] && (
+          <GameBoard //
             gameState={gameState}
             handleAction={handleAction}
-            player={players[playerId]}
-          />
-        )}
-        <p>My tricks:</p>
-        {gameState && players && players[playerId] && (
-          <Tricks //
-            tricks={players[playerId].tricks}
+            players={players}
+            playerId={playerId}
           />
         )}
       </div>
@@ -128,6 +103,43 @@ function App() {
 }
 
 export default App
+
+interface GameBoardProps {
+  gameState: GameState
+  handleAction: (action: string, card?: string) => void
+  players: Players
+  playerId: string
+}
+
+function GameBoard({ gameState, players, playerId, handleAction }: GameBoardProps) {
+  return (
+    <>
+      <Scoreboard //
+        gameState={gameState}
+        players={players}
+        playerId={playerId}
+      />
+      <Penalties //
+        gameState={gameState}
+      />
+      <p>***</p>
+      <DiscardPile //
+        gameState={gameState}
+      />
+      <p>***</p>
+      <p>My hand:</p>
+      <Hand //
+        gameState={gameState}
+        handleAction={handleAction}
+        player={players[playerId]}
+      />
+      <p>My tricks:</p>
+      <Tricks //
+        tricks={players[playerId].tricks}
+      />
+    </>
+  )
+}
 
 interface ScoreboardProps {
   gameState: GameState
@@ -197,53 +209,6 @@ function Penalties({ gameState }: PenaltiesProps) {
         ))}
       </ul>
     </details>
-  )
-}
-
-interface TricksProps {
-  tricks: Trick[]
-}
-
-function Tricks({ tricks }: TricksProps) {
-  return (
-    <div className='tricks'>
-      {tricks.map((trick, index) => {
-        const isTopTrick = index === tricks.length - 1
-
-        return (
-          <Trick //
-            className={isTopTrick ? 'animate' : ''}
-            key={index}
-            index={index}
-            trick={trick}
-          />
-        )
-      })}
-    </div>
-  )
-}
-
-interface TrickProps {
-  className?: string
-  index: number
-  trick: Trick
-}
-
-function Trick({ className, index, trick }: TrickProps) {
-  return (
-    <button className={`trick ${className}`}>
-      {trick.cards.map((card, cardIndex) => {
-        const topOffset = index * 0.5
-
-        return (
-          <Card //
-            card={card}
-            key={cardIndex}
-            style={{ top: `-${topOffset}px` }}
-          />
-        )
-      })}
-    </button>
   )
 }
 
@@ -341,5 +306,52 @@ function Card({ card, className, disabled, onClick, style }: Card) {
     <div className={`card ${className}`} style={style}>
       {renderCardLabel(card)}
     </div>
+  )
+}
+
+interface TricksProps {
+  tricks: Trick[]
+}
+
+function Tricks({ tricks }: TricksProps) {
+  return (
+    <div className='tricks'>
+      {tricks.map((trick, index) => {
+        const isTopTrick = index === tricks.length - 1
+
+        return (
+          <Trick //
+            className={isTopTrick ? 'animate' : ''}
+            key={index}
+            index={index}
+            trick={trick}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+interface TrickProps {
+  className?: string
+  index: number
+  trick: Trick
+}
+
+function Trick({ className, index, trick }: TrickProps) {
+  return (
+    <button className={`trick ${className}`}>
+      {trick.cards.map((card, cardIndex) => {
+        const topOffset = index * 0.5
+
+        return (
+          <Card //
+            card={card}
+            key={cardIndex}
+            style={{ top: `-${topOffset}px` }}
+          />
+        )
+      })}
+    </button>
   )
 }
