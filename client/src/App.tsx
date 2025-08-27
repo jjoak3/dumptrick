@@ -10,7 +10,7 @@ interface GameState {
 }
 
 interface Players {
-  [session_id: string]: Player
+  [player_id: string]: Player
 }
 
 interface Player {
@@ -18,7 +18,7 @@ interface Player {
   is_winner: boolean
   name: string
   scores: number[]
-  session_id: string
+  player_id: string
   total_score: number
   tricks: Trick[]
 }
@@ -28,11 +28,11 @@ interface Trick {
 }
 
 const createWebSocket = () => {
-  const storedId = localStorage.getItem('session_id')
+  const storedId = localStorage.getItem('dumptrick_player_id')
   const serverHost = import.meta.env.VITE_SERVER_HOST
   let url = new URL(`ws://${serverHost}:8000/ws`)
 
-  if (storedId) url.searchParams.set('session_id', storedId)
+  if (storedId) url.searchParams.set('player_id', storedId)
 
   return new WebSocket(url.toString())
 }
@@ -40,7 +40,7 @@ const createWebSocket = () => {
 function App() {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [players, setPlayers] = useState<Players>({})
-  const [sessionId, setSessionId] = useState('')
+  const [playerId, setPlayerId] = useState('')
 
   const websocketRef = useRef<WebSocket | null>(null)
 
@@ -54,7 +54,7 @@ function App() {
 
         if (data.game_state) setGameState(data.game_state)
         if (data.players) setPlayers(data.players)
-        if (data.session_id) setSessionId(data.session_id)
+        if (data.player_id) setPlayerId(data.player_id)
       } catch (error) {
         console.error(error)
       }
@@ -64,8 +64,8 @@ function App() {
   }, [])
 
   useEffect(() => {
-    localStorage.setItem('session_id', sessionId)
-  }, [sessionId])
+    localStorage.setItem('dumptrick_player_id', playerId)
+  }, [playerId])
 
   const handleAction = (action: string, card?: string) => {
     const websocket = websocketRef.current
@@ -93,7 +93,7 @@ function App() {
           <Scoreboard //
             gameState={gameState}
             players={players}
-            sessionId={sessionId}
+            playerId={playerId}
           />
         )}
         {gameState && (
@@ -109,17 +109,17 @@ function App() {
         )}
         <p>***</p>
         <p>My hand:</p>
-        {gameState && players && players[sessionId] && (
+        {gameState && players && players[playerId] && (
           <Hand //
             gameState={gameState}
             handleAction={handleAction}
-            player={players[sessionId]}
+            player={players[playerId]}
           />
         )}
         <p>My tricks:</p>
-        {gameState && players && players[sessionId] && (
+        {gameState && players && players[playerId] && (
           <Tricks //
-            tricks={players[sessionId].tricks}
+            tricks={players[playerId].tricks}
           />
         )}
       </div>
@@ -132,10 +132,10 @@ export default App
 interface ScoreboardProps {
   gameState: GameState
   players: Players
-  sessionId: string
+  playerId: string
 }
 
-function Scoreboard({ gameState, players, sessionId }: ScoreboardProps) {
+function Scoreboard({ gameState, players, playerId }: ScoreboardProps) {
   return (
     <pre className='scoreboard-wrapper'>
       <table className='scoreboard'>
@@ -154,10 +154,10 @@ function Scoreboard({ gameState, players, sessionId }: ScoreboardProps) {
         <tbody>
           {Object.entries(players).map(([id, player]) => (
             <tr key={id}>
-              <td>{player.session_id == gameState.turn_player ? '* ' : '  '}</td>
+              <td>{player.player_id == gameState.turn_player ? '* ' : '  '}</td>
               <td>
                 {player.name}
-                {player.session_id == sessionId && ' (You)'}
+                {player.player_id == playerId && ' (You)'}
                 {gameState.game_phase == 'GAME_COMPLETE' && player.is_winner && ' 👑'}
               </td>
               <td className='col-score'>{player.scores[0] != undefined ? player.scores[0] : '-'}</td>
@@ -285,10 +285,10 @@ function Hand({ gameState, handleAction, player }: HandProps) {
       {player.hand.map((card) => (
         <Card //
           card={card}
-          disabled={gameState.turn_phase == 'TURN_COMPLETE' || gameState.turn_player != player.session_id}
+          disabled={gameState.turn_phase == 'TURN_COMPLETE' || player.player_id != gameState.turn_player}
           key={card}
           onClick={() => {
-            if (gameState.turn_player == player.session_id) handleAction('play_card', card)
+            if (player.player_id == gameState.turn_player) handleAction('play_card', card)
           }}
         />
       ))}

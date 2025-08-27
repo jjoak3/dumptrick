@@ -38,7 +38,7 @@ SUIT_ORDER = ["D", "C", "H", "S"]
 """Helpers"""
 
 
-def generate_session_id() -> str:
+def generate_player_id() -> str:
     return generate(alphabet="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", size=4)
 
 
@@ -171,7 +171,7 @@ class GameFlow:
 
         player.hand.remove(card)
         self.game_state.discard_pile.append(card)
-        self.game_state.current_trick.update_trick(card, player.session_id)
+        self.game_state.current_trick.update_trick(card, player.player_id)
         self.game_state.turn_phase = TurnPhase.TURN_COMPLETE
 
         return True
@@ -329,13 +329,13 @@ class Trick(BaseModel):
     winner: str = ""
     winning_card: str = ""
 
-    def update_trick(self, card: str, session_id: str):
+    def update_trick(self, card: str, player_id: str):
         if not self.leading_suit:
             self.leading_suit = card[-1]
 
         if is_higher_rank(card, self.winning_card):
             self.winning_card = card
-            self.winner = session_id
+            self.winner = player_id
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -349,8 +349,8 @@ class Player(BaseModel):
     hand: List[str] = []
     is_winner: bool = False
     name: str = ""
+    player_id: str = ""
     scores: List[int] = []
-    session_id: str = ""
     tricks: List[Trick] = []
     type: PlayerType = PlayerType.HUMAN
     websocket: WebSocket = None
@@ -376,7 +376,7 @@ class Player(BaseModel):
             "is_winner": self.is_winner,
             "name": self.name,
             "scores": self.scores,
-            "session_id": self.session_id,
+            "player_id": self.player_id,
             "total_score": sum(self.scores),
             "tricks": [trick.to_dict() for trick in self.tricks],
         }
@@ -387,17 +387,17 @@ class Players(Dict[str, Player]):
         super().__init__()
         self.score_calculator = ScoreCalculator()
 
-    def add_bot(self, session_id: str):
-        self[session_id] = Player(
-            name=f"Bot {session_id}",
-            session_id=session_id,
+    def add_bot(self, player_id: str):
+        self[player_id] = Player(
+            name=f"Bot {player_id}",
+            player_id=player_id,
             type=PlayerType.BOT,
         )
 
-    def add_player(self, session_id: str):
-        self[session_id] = Player(
-            name=f"Player {session_id}",
-            session_id=session_id,
+    def add_player(self, player_id: str):
+        self[player_id] = Player(
+            name=f"Player {player_id}",
+            player_id=player_id,
             type=PlayerType.HUMAN,
         )
 
@@ -416,13 +416,13 @@ class Players(Dict[str, Player]):
 
     def fill_open_slots_with_bots(self):
         while len(self) < MAX_PLAYERS:
-            self.add_bot(generate_session_id())
+            self.add_bot(generate_player_id())
 
     def get_total_scores(self) -> Dict[str, int]:
         total_scores = {}
 
-        for session_id, player in self.items():
-            total_scores[session_id] = sum(player.scores)
+        for player_id, player in self.items():
+            total_scores[player_id] = sum(player.scores)
 
         return total_scores
 
@@ -430,12 +430,12 @@ class Players(Dict[str, Player]):
         total_scores = self.get_total_scores()
         lowest_score = min(total_scores.values())
 
-        for session_id, score in total_scores.items():
+        for player_id, score in total_scores.items():
             if score == lowest_score:
-                self[session_id].is_winner = True
+                self[player_id].is_winner = True
 
     def to_dict(self) -> Dict[str, Player]:
-        return {session_id: player.to_dict() for session_id, player in self.items()}
+        return {player_id: player.to_dict() for player_id, player in self.items()}
 
 
 class GameState(BaseModel):
@@ -454,7 +454,7 @@ class GameState(BaseModel):
         return self.turn_order[self.turn_order_index] if self.turn_order else ""
 
     def set_turn_order(self, players: Players):
-        self.turn_order = [player.session_id for player in players.values()]
+        self.turn_order = [player.player_id for player in players.values()]
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -475,12 +475,12 @@ class GameController:
         self.players = Players()
         self.game_flow = GameFlow(self.game_state, self.players)
 
-    async def handle_action(self, action: str, session_id: str, card: str):
+    async def handle_action(self, action: str, player_id: str, card: str):
         if action == "start_game":
             self.game_flow.start_game()
 
         elif action == "play_card":
-            player = self.players.get(session_id)
+            player = self.players.get(player_id)
             success = await self.game_flow.play_card(player, card)
 
             if not success:
@@ -521,11 +521,11 @@ class GameController:
         await broadcast(payload)
         await asyncio.sleep(0.5)  # Give players time to see played card
 
-    def get_session_data(self, session_id: str) -> Dict[str, Any]:
+    def get_session_data(self, player_id: str) -> Dict[str, Any]:
         return {
             "game_state": self.game_state.to_dict(),
             "players": self.players.to_dict(),
-            "session_id": session_id,
+            "player_id": player_id,
         }
 
 
@@ -544,7 +544,7 @@ async def broadcast(payload: Dict[str, Any]):
             await player.websocket.send_json(payload)
         except Exception as e:
             player.clear_websocket()
-            error(f"Error broadcasting to player {player.session_id}: {e}")
+            error(f"Error broadcasting to player {player.player_id}: {e}")
 
 
 """Endpoints"""
@@ -559,19 +559,19 @@ async def root():
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
-    session_id = websocket.query_params.get("session_id")
-    if not session_id or session_id not in game_controller.players:
-        session_id = generate_session_id()
+    player_id = websocket.query_params.get("player_id")
+    if not player_id or player_id not in game_controller.players:
+        player_id = generate_player_id()
 
         if len(game_controller.players) >= MAX_PLAYERS:
             await websocket.close()
             return
 
-        game_controller.players.add_player(session_id)
+        game_controller.players.add_player(player_id)
         await broadcast({"players": game_controller.players.to_dict()})
 
-    game_controller.players.get(session_id).set_websocket(websocket)
-    await websocket.send_json(game_controller.get_session_data(session_id))
+    game_controller.players.get(player_id).set_websocket(websocket)
+    await websocket.send_json(game_controller.get_session_data(player_id))
 
     try:
         while True:
@@ -580,7 +580,7 @@ async def websocket_endpoint(websocket: WebSocket):
             action = data.get("action")
             card = data.get("card")
 
-            await game_controller.handle_action(action, session_id, card)
+            await game_controller.handle_action(action, player_id, card)
 
             await broadcast(
                 {
@@ -589,7 +589,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
             )
     except WebSocketDisconnect:
-        player = game_controller.players.get(session_id)
+        player = game_controller.players.get(player_id)
         if player:
             player.clear_websocket()
 
