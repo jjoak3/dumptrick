@@ -42,6 +42,22 @@ def generate_session_id() -> str:
     return generate(alphabet="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", size=4)
 
 
+def is_higher_rank(card_a: str, card_b: str) -> bool:
+    if not card_a:
+        return False
+
+    if not card_b:
+        return True
+
+    card_a_rank, card_a_suit = parse_card(card_a)
+    card_b_rank, card_b_suit = parse_card(card_b)
+
+    if card_a_suit != card_b_suit:
+        return False
+
+    return card_a_rank > card_b_rank
+
+
 def parse_card(card: str) -> tuple[int, str]:
     rank = card[:-1]
     suit = card[-1]
@@ -56,6 +72,10 @@ def parse_card(card: str) -> tuple[int, str]:
         rank = "11"
 
     return int(rank), suit
+
+
+def rotate_index(index: int, length: int) -> int:
+    return (index + 1) % length
 
 
 """Enums"""
@@ -102,13 +122,16 @@ class DeckManager:
     def shuffle(self):
         random.shuffle(self.deck)
 
-    def deal_hands(self, num_players: int, hand_size: int = 13) -> List[List[str]]:
+    def deal_hands(self, num_players: int) -> List[List[str]]:
+        hand_size = len(self.deck) // num_players
         hands = []
+
         for _ in range(num_players):
             hand = self.deck[:hand_size]
             self.deck = self.deck[hand_size:]
             hand.sort(key=self._get_card_sort_key)
             hands.append(hand)
+
         return hands
 
     def reset(self):
@@ -117,6 +140,126 @@ class DeckManager:
     def _get_card_sort_key(self, card: str) -> tuple[int, int]:
         rank, suit = parse_card(card)
         return (SUIT_ORDER.index(suit), rank)
+
+
+class GameFlow:
+    def __init__(self, game_state: "GameState", players: "Players"):
+        self.game_state = game_state
+        self.players = players
+        self.bot_strategy = BotStrategy()
+        self.deck_manager = DeckManager()
+
+    def start_game(self):
+        self.players.fill_open_slots_with_bots()
+
+        self.game_state.game_phase = GamePhase.STARTED
+        self._setup_new_round()
+
+    def _setup_new_round(self):
+        self.game_state.set_turn_order(self.players)
+
+        self.deck_manager.reset()
+        self.deck_manager.shuffle()
+        hands = self.deck_manager.deal_hands(len(self.players))
+
+        for i, player in enumerate(self.players.values()):
+            player.hand = hands[i]
+
+    async def play_card(self, player: "Player", card: str) -> bool:
+        if not self._is_valid_play(player, card):
+            return False
+
+        player.hand.remove(card)
+        self.game_state.discard_pile.append(card)
+        self.game_state.current_trick.update_trick(card, player.session_id)
+        self.game_state.turn_phase = TurnPhase.TURN_COMPLETE
+
+        return True
+
+    def _is_valid_play(self, player: "Player", card: str) -> bool:
+        if card not in player.hand:
+            return False
+
+        suit = parse_card(card)[1]
+        leading_suit = self.game_state.current_trick.leading_suit
+
+        if leading_suit and player.has_suit(leading_suit) and suit != leading_suit:
+            return False
+
+        return True
+
+    def advance_turn(self):
+        self.game_state.turn_order_index = rotate_index(
+            self.game_state.turn_order_index,
+            len(self.game_state.turn_order),
+        )
+        self.game_state.turn_phase = TurnPhase.NOT_STARTED
+
+        if self._is_trick_over():
+            self._advance_trick()
+
+        if self._is_round_over():
+            self._advance_round()
+
+    def _is_trick_over(self) -> bool:
+        return self.game_state.turn_order_index == self.game_state.trick_start_index
+
+    def _is_round_over(self) -> bool:
+        for player in self.players.values():
+            if player.hand:
+                return False
+        return True
+
+    def _advance_trick(self):
+        self.game_state.current_trick.cards = self.game_state.discard_pile.copy()
+        self.game_state.discard_pile.clear()
+
+        if self._is_round_over():
+            self.game_state.current_trick.is_last_trick = True
+
+        self.players.get(self.game_state.current_trick.winner).take_trick(
+            self.game_state.current_trick
+        )
+
+        self.game_state.turn_order_index = self.game_state.turn_order.index(
+            self.game_state.current_trick.winner
+        )
+        self.game_state.trick_start_index = self.game_state.turn_order_index
+
+        self.game_state.current_trick = Trick()
+
+    def _advance_round(self):
+        self.game_state.current_round += 1
+        self.players.calculate_scores(self.game_state.current_round)
+
+        if self.game_state.current_round >= 5:
+            return self._end_game()
+
+        self.game_state.round_start_index = rotate_index(
+            self.game_state.round_start_index, len(self.game_state.turn_order)
+        )
+        self.game_state.turn_order_index = self.game_state.round_start_index
+        self.game_state.trick_start_index = self.game_state.round_start_index
+
+        self._setup_new_round()
+        self.players.clear_tricks()
+
+    def _end_game(self):
+        self.game_state.game_phase = GamePhase.GAME_COMPLETE
+        self.players.set_winners()
+
+    def restart_game(self):
+        self.game_state.current_round = 0
+        self.game_state.current_trick = Trick()
+        self.game_state.discard_pile.clear()
+        self.game_state.game_phase = GamePhase.STARTED
+        self.game_state.round_start_index = 0
+        self.game_state.trick_start_index = 0
+        self.game_state.turn_order_index = 0
+
+        self._setup_new_round()
+        self.players.clear_scores()
+        self.players.clear_tricks()
 
 
 class ScoreCalculator:
@@ -186,25 +329,11 @@ class Trick(BaseModel):
     winner: str = ""
     winning_card: str = ""
 
-    def is_winning_card(self, card: str) -> bool:
-        if not self.winning_card:
-            return True
-
-        card_suit = parse_card(card)[1]
-
-        if card_suit != self.leading_suit:
-            return False
-
-        winning_card_rank = parse_card(self.winning_card)[0]
-        card_rank = parse_card(card)[0]
-
-        return card_rank > winning_card_rank
-
     def update_trick(self, card: str, session_id: str):
         if not self.leading_suit:
             self.leading_suit = card[-1]
 
-        if self.is_winning_card(card):
+        if is_higher_rank(card, self.winning_card):
             self.winning_card = card
             self.winner = session_id
 
@@ -226,17 +355,17 @@ class Player(BaseModel):
     type: PlayerType = PlayerType.HUMAN
     websocket: WebSocket = None
 
-    def clear_websocket(self):
-        self.websocket = None
+    def has_suit(self, suit: str) -> bool:
+        return any(parse_card(card)[1] == suit for card in self.hand)
 
     def is_bot(self) -> bool:
         return self.type == PlayerType.BOT
 
-    def is_suit_in_hand(self, suit: str) -> bool:
-        return any(parse_card(card)[1] == suit for card in self.hand)
-
     def set_websocket(self, websocket: WebSocket):
         self.websocket = websocket
+
+    def clear_websocket(self):
+        self.websocket = None
 
     def take_trick(self, trick: Trick):
         self.tricks.append(trick)
@@ -285,6 +414,10 @@ class Players(Dict[str, Player]):
         for player in self.values():
             player.tricks.clear()
 
+    def fill_open_slots_with_bots(self):
+        while len(self) < MAX_PLAYERS:
+            self.add_bot(generate_session_id())
+
     def get_total_scores(self) -> Dict[str, int]:
         total_scores = {}
 
@@ -314,26 +447,14 @@ class GameState(BaseModel):
     turn_order: List[str] = []
     turn_order_index: int = 0
     turn_phase: TurnPhase = TurnPhase.NOT_STARTED
-    turn_player: str = ""
     trick_start_index: int = 0
+
+    @property
+    def turn_player(self) -> str:
+        return self.turn_order[self.turn_order_index] if self.turn_order else ""
 
     def set_turn_order(self, players: Players):
         self.turn_order = [player.session_id for player in players.values()]
-
-    def set_turn_player(self):
-        self.turn_player = self.turn_order[self.turn_order_index]
-
-    def increment_index(self, index: int) -> int:
-        return (index + 1) % len(self.turn_order)
-
-    def is_round_over(self, players: Players) -> bool:
-        for player in players.values():
-            if player.hand:
-                return False
-        return True
-
-    def is_trick_over(self) -> bool:
-        return self.turn_order_index == self.trick_start_index
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -345,128 +466,6 @@ class GameState(BaseModel):
         }
 
 
-class GameFlow:
-    def __init__(self, game_state: GameState, players: Players):
-        self.game_state = game_state
-        self.players = players
-        self.bot_strategy = BotStrategy()
-        self.deck_manager = DeckManager()
-
-    def start_game(self):
-        while len(self.players) < 4:
-            self.players.add_bot(generate_session_id())
-
-        self.game_state.game_phase = GamePhase.STARTED
-        self._setup_new_round()
-
-    def _setup_new_round(self):
-        self.game_state.set_turn_order(self.players)
-        self.game_state.set_turn_player()
-
-        self.deck_manager.reset()
-        self.deck_manager.shuffle()
-        hands = self.deck_manager.deal_hands(len(self.players))
-
-        for i, player in enumerate(self.players.values()):
-            player.hand = hands[i]
-
-    async def play_card(self, player: Player, card: str) -> bool:
-        if not self._is_valid_play(player, card):
-            return False
-
-        player.hand.remove(card)
-        self.game_state.discard_pile.append(card)
-        self.game_state.current_trick.update_trick(card, player.session_id)
-        self.game_state.turn_phase = TurnPhase.TURN_COMPLETE
-
-        return True
-
-    def _is_valid_play(self, player: Player, card: str) -> bool:
-        if card not in player.hand:
-            return False
-
-        suit = parse_card(card)[1]
-        leading_suit = self.game_state.current_trick.leading_suit
-
-        if (
-            leading_suit
-            and player.is_suit_in_hand(leading_suit)
-            and suit != leading_suit
-        ):
-            return False
-
-        return True
-
-    def advance_turn(self):
-        self.game_state.turn_order_index = self.game_state.increment_index(
-            self.game_state.turn_order_index
-        )
-        self.game_state.set_turn_player()
-        self.game_state.turn_phase = TurnPhase.NOT_STARTED
-
-        if self.game_state.is_trick_over():
-            self._advance_trick()
-
-        if self.game_state.is_round_over(self.players):
-            self._advance_round()
-
-    def _advance_trick(self):
-        self.game_state.current_trick.cards = self.game_state.discard_pile.copy()
-        self.game_state.discard_pile.clear()
-
-        if self.game_state.is_round_over(self.players):
-            self.game_state.current_trick.is_last_trick = True
-
-        self.players.get(self.game_state.current_trick.winner).take_trick(
-            self.game_state.current_trick
-        )
-
-        self.game_state.turn_order_index = self.game_state.turn_order.index(
-            self.game_state.current_trick.winner
-        )
-        self.game_state.trick_start_index = self.game_state.turn_order_index
-        self.game_state.set_turn_player()
-
-        self.game_state.current_trick = Trick()
-
-    def _advance_round(self):
-        self.game_state.current_round += 1
-        self.players.calculate_scores(self.game_state.current_round)
-
-        if self.game_state.current_round >= 5:
-            return self._end_game()
-
-        self.game_state.round_start_index = self.game_state.increment_index(
-            self.game_state.round_start_index
-        )
-        self.game_state.turn_order_index = self.game_state.round_start_index
-        self.game_state.trick_start_index = self.game_state.turn_order_index
-        self.game_state.set_turn_player()
-
-        self._setup_new_round()
-        self.players.clear_tricks()
-
-    def _end_game(self):
-        self.game_state.game_phase = GamePhase.GAME_COMPLETE
-        self.players.set_winners()
-
-    def restart_game(self):
-        self.game_state.game_phase = GamePhase.STARTED
-        self.game_state.current_round = 0
-        self.game_state.round_start_index = 0
-        self.game_state.trick_start_index = 0
-        self.game_state.turn_order_index = 0
-        self.game_state.current_trick = Trick()
-        self.game_state.discard_pile.clear()
-
-        self._setup_new_round()
-        self.players.clear_scores()
-        self.players.clear_tricks()
-
-    def get_bot_card_choice(self, player: Player) -> str:
-        return self.bot_strategy.choose_card(player, self.game_state.current_trick)
-
-
 """Game controller"""
 
 
@@ -476,42 +475,51 @@ class GameController:
         self.players = Players()
         self.game_flow = GameFlow(self.game_state, self.players)
 
-    async def handle_action(self, action: str, session_id: str, **kwargs):
+    async def handle_action(self, action: str, session_id: str, card: str):
         if action == "start_game":
             self.game_flow.start_game()
+
         elif action == "play_card":
             player = self.players.get(session_id)
-            card = kwargs.get("card")
             success = await self.game_flow.play_card(player, card)
-            if success:
-                await self._broadcast_game_state()
-                self.game_flow.advance_turn()
 
-                await self._handle_bot_turns()
+            if not success:
+                return
+
+            await self._broadcast_game_state()
+            self.game_flow.advance_turn()
+
+            await self._handle_bot_turns()
+
         elif action == "restart_game":
             self.game_flow.restart_game()
 
     async def _handle_bot_turns(self):
         while self.game_state.game_phase == GamePhase.STARTED:
             next_player = self.players.get(self.game_state.turn_player)
-            if next_player and next_player.is_bot():
-                card = self.game_flow.get_bot_card_choice(next_player)
-                success = await self.game_flow.play_card(next_player, card)
-                if success:
-                    await self._broadcast_game_state()
-                    self.game_flow.advance_turn()
-                else:
-                    break
-            else:
+
+            if not next_player.is_bot():
                 break
+
+            card = self.game_flow.bot_strategy.choose_card(
+                next_player, self.game_state.current_trick
+            )
+            success = await self.game_flow.play_card(next_player, card)
+
+            if not success:
+                break
+
+            await self._broadcast_game_state()
+            self.game_flow.advance_turn()
 
     async def _broadcast_game_state(self):
         payload = {
             "game_state": self.game_state.to_dict(),
             "players": self.players.to_dict(),
         }
-        await asyncio.sleep(0.5)  # Give players time to see played card
+
         await broadcast(payload)
+        await asyncio.sleep(0.5)  # Give players time to see played card
 
     def get_session_data(self, session_id: str) -> Dict[str, Any]:
         return {
@@ -529,12 +537,14 @@ game_controller = GameController()
 
 async def broadcast(payload: Dict[str, Any]):
     for player in game_controller.players.values():
-        if player.websocket:
-            try:
-                await player.websocket.send_json(payload)
-            except Exception as e:
-                player.clear_websocket()
-                error(f"Error broadcasting to player {player.session_id}: {e}")
+        if not player.websocket:
+            continue
+
+        try:
+            await player.websocket.send_json(payload)
+        except Exception as e:
+            player.clear_websocket()
+            error(f"Error broadcasting to player {player.session_id}: {e}")
 
 
 """Endpoints"""
@@ -553,15 +563,14 @@ async def websocket_endpoint(websocket: WebSocket):
     if not session_id or session_id not in game_controller.players:
         session_id = generate_session_id()
 
-        if len(game_controller.players) < MAX_PLAYERS:
-            game_controller.players.add_player(session_id)
-            await broadcast({"players": game_controller.players.to_dict()})
-        else:
+        if len(game_controller.players) >= MAX_PLAYERS:
             await websocket.close()
             return
 
-    game_controller.players.get(session_id).set_websocket(websocket)
+        game_controller.players.add_player(session_id)
+        await broadcast({"players": game_controller.players.to_dict()})
 
+    game_controller.players.get(session_id).set_websocket(websocket)
     await websocket.send_json(game_controller.get_session_data(session_id))
 
     try:
@@ -571,7 +580,7 @@ async def websocket_endpoint(websocket: WebSocket):
             action = data.get("action")
             card = data.get("card")
 
-            await game_controller.handle_action(action, session_id, card=card)
+            await game_controller.handle_action(action, session_id, card)
 
             await broadcast(
                 {
