@@ -450,7 +450,7 @@ class GameState(BaseModel):
     trick_start_index: int = 0
 
     @property
-    def turn_player(self) -> str:
+    def current_player_id(self) -> str:
         return self.turn_order[self.turn_order_index] if self.turn_order else ""
 
     def set_turn_order(self, players: Players):
@@ -458,11 +458,11 @@ class GameState(BaseModel):
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "current_player_id": self.current_player_id,
             "current_round": self.current_round,
             "discard_pile": self.discard_pile,
             "game_phase": self.game_phase.name,
             "turn_phase": self.turn_phase.name,
-            "turn_player": self.turn_player,
         }
 
 
@@ -496,7 +496,7 @@ class GameController:
 
     async def _handle_bot_turns(self):
         while self.game_state.game_phase == GamePhase.STARTED:
-            next_player = self.players.get(self.game_state.turn_player)
+            next_player = self.players.get(self.game_state.current_player_id)
 
             if not next_player.is_bot():
                 break

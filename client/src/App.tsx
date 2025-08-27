@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
 interface GameState {
+  current_player_id: string
   current_round: number
   discard_pile: string[]
   game_phase: string
   turn_phase: string
-  turn_player: string
 }
 
 interface Players {
@@ -154,7 +154,7 @@ function Scoreboard({ gameState, players, playerId }: ScoreboardProps) {
         <tbody>
           {Object.entries(players).map(([id, player]) => (
             <tr key={id}>
-              <td>{player.player_id == gameState.turn_player ? '* ' : '  '}</td>
+              <td>{player.player_id == gameState.current_player_id ? '* ' : '  '}</td>
               <td>
                 {player.name}
                 {player.player_id == playerId && ' (You)'}
@@ -285,10 +285,10 @@ function Hand({ gameState, handleAction, player }: HandProps) {
       {player.hand.map((card) => (
         <Card //
           card={card}
-          disabled={gameState.turn_phase == 'TURN_COMPLETE' || player.player_id != gameState.turn_player}
+          disabled={gameState.turn_phase == 'TURN_COMPLETE' || player.player_id != gameState.current_player_id}
           key={card}
           onClick={() => {
-            if (player.player_id == gameState.turn_player) handleAction('play_card', card)
+            if (player.player_id == gameState.current_player_id) handleAction('play_card', card)
           }}
         />
       ))}
