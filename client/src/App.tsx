@@ -4,6 +4,7 @@ import './App.css'
 interface GameState {
   current_player_id: string
   current_round: number
+  current_trick: Trick
   discard_pile: string[]
   game_phase: string
   turn_phase: string
@@ -25,6 +26,7 @@ interface Player {
 
 interface Trick {
   cards: string[]
+  leading_suit: string
 }
 
 const createWebSocket = () => {
@@ -285,16 +287,30 @@ interface HandProps {
 }
 
 function Hand({ gameState, handleAction, player }: HandProps) {
+  const isCardDisabled = (card: string) => {
+    const leadingSuit = gameState.current_trick.leading_suit
+    const cardSuit = card[card.length - 1]
+
+    const isTurnComplete = gameState.turn_phase == 'TURN_COMPLETE'
+    const isNotMyTurn = player.player_id != gameState.current_player_id
+    const isNotLeadingSuit = leadingSuit && cardSuit != leadingSuit
+    const isLeadingSuitInHand = player.hand.some((card) => card[card.length - 1] == leadingSuit)
+
+    if (isTurnComplete) return true
+    if (isNotMyTurn) return true
+    if (isNotLeadingSuit && isLeadingSuitInHand) return true
+
+    return false
+  }
+
   return (
     <div className='hand'>
       {player.hand.map((card) => (
         <Card //
           card={card}
-          disabled={gameState.turn_phase == 'TURN_COMPLETE' || player.player_id != gameState.current_player_id}
+          disabled={isCardDisabled(card)}
           key={card}
-          onClick={() => {
-            if (player.player_id == gameState.current_player_id) handleAction('play_card', card)
-          }}
+          onClick={() => handleAction('play_card', card)}
         />
       ))}
     </div>

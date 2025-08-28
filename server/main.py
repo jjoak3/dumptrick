@@ -340,6 +340,7 @@ class Trick(BaseModel):
     def to_dict(self) -> Dict[str, Any]:
         return {
             "cards": self.cards,
+            "leading_suit": self.leading_suit,
         }
 
 
@@ -460,6 +461,7 @@ class GameState(BaseModel):
         return {
             "current_player_id": self.current_player_id,
             "current_round": self.current_round,
+            "current_trick": self.current_trick.to_dict(),
             "discard_pile": self.discard_pile,
             "game_phase": self.game_phase.name,
             "turn_phase": self.turn_phase.name,
