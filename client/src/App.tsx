@@ -84,7 +84,7 @@ function App() {
             handleAction={handleAction}
           />
         )}
-        <p className='divider'>***</p>
+        <hr />
         {gameState?.game_phase == 'NOT_STARTED' && players?.[playerId] && (
           <Lobby //
             players={players}
@@ -158,11 +158,11 @@ function GameBoard({ gameState, players, playerId, handleAction }: GameBoardProp
       <Penalties //
         gameState={gameState}
       />
-      <p className='divider'>***</p>
+      <hr />
       <DiscardPile //
         gameState={gameState}
       />
-      <p className='divider'>***</p>
+      <hr />
       <p>My hand:</p>
       <Hand //
         gameState={gameState}
@@ -190,13 +190,13 @@ function Scoreboard({ gameState, players, playerId }: ScoreboardProps) {
         <thead>
           <tr>
             <th></th>
-            <th></th>
-            <th className='col-score'>{'  '}R1</th>
-            <th className='col-score'>{'  '}R2</th>
-            <th className='col-score'>{'  '}R3</th>
-            <th className='col-score'>{'  '}R4</th>
-            <th className='col-score'>{'  '}R5</th>
-            <th className='col-score'> TTL</th>
+            <th>Players</th>
+            <th className='col-score'>{'   '}R1</th>
+            <th className='col-score'>{'   '}R2</th>
+            <th className='col-score'>{'   '}R3</th>
+            <th className='col-score'>{'   '}R4</th>
+            <th className='col-score'>{'   '}R5</th>
+            <th className='col-score'>{'  '}TTL</th>
           </tr>
         </thead>
         <tbody>
@@ -208,12 +208,12 @@ function Scoreboard({ gameState, players, playerId }: ScoreboardProps) {
                 {player.player_id == playerId && ' (You)'}
                 {gameState.game_phase == 'GAME_COMPLETE' && player.is_winner && ' 👑'}
               </td>
-              <td className='col-score'>{player.scores[0] != undefined ? player.scores[0] : '-'}</td>
-              <td className='col-score'>{player.scores[1] != undefined ? player.scores[1] : '-'}</td>
-              <td className='col-score'>{player.scores[2] != undefined ? player.scores[2] : '-'}</td>
-              <td className='col-score'>{player.scores[3] != undefined ? player.scores[3] : '-'}</td>
-              <td className='col-score'>{player.scores[4] != undefined ? player.scores[4] : '-'}</td>
-              <td className='col-score'>{player.total_score != undefined ? player.total_score : '-'}</td>
+              {[0, 1, 2, 3, 4].map((roundIndex) => (
+                <td className='col-score' key={roundIndex}>
+                  {player.scores[roundIndex] != undefined ? player.scores[roundIndex] : <span className='placeholder'>-</span>}
+                </td>
+              ))}
+              <td className='col-score'>{player.total_score != undefined ? player.total_score : <span className='placeholder'>-</span>}</td>
             </tr>
           ))}
         </tbody>

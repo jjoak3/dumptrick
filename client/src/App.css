@@ -1,6 +1,5 @@
 :root {
   --bgColor-card: #fff;
-  --bgColor-inset: #eee;
   --borderColor-card: #aaa;
   --borderColor-focus: #000;
   --borderRadius-card: 0.333rem;
@@ -8,7 +7,8 @@
   --easeOutExpo: cubic-bezier(0.16, 1, 0.3, 1);
   --fgColor-card: #000;
   --fgColor-default: #000;
-  --fgColor-subtle: #aaa;
+  --fgColor-muted: #999;
+  --fgColor-subtle: #ccc;
   --height-card: calc(1.25rem * 3.5);
   --rotate-left: -5.625deg;
   --rotate-right: 5.625deg;
@@ -24,8 +24,8 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bgColor-default: #333;
-    --bgColor-inset: #444;
     --fgColor-default: #fff;
+    --fgColor-muted: #aaa;
     --fgColor-subtle: #666;
   }
 }
@@ -91,6 +91,8 @@ button:focus > .card {
 }
 
 details.penalties-wrapper {
+  color: var(--fgColor-muted);
+  font-style: italic;
   margin-top: var(--spacing-4);
   white-space: pre;
 }
@@ -106,6 +108,16 @@ details.penalties-wrapper > summary::before {
 
 details.penalties-wrapper[open] > summary::before {
   content: '- ';
+}
+
+hr {
+  border: none;
+  margin-top: var(--spacing-4);
+}
+
+hr::before {
+  color: var(--fgColor-subtle);
+  content: '* = * = *';
 }
 
 ol {
@@ -197,6 +209,7 @@ ul.penalties {
 }
 
 .scoreboard-wrapper {
+  margin-top: var(--spacing-4);
   overflow-x: auto;
 }
 
@@ -206,11 +219,17 @@ ul.penalties {
 }
 
 .scoreboard th {
+  color: var(--fgColor-muted);
   font-weight: inherit;
+  text-align: left;
 }
 
 .scoreboard .col-score {
   text-align: right;
+}
+
+.scoreboard .placeholder {
+  color: var(--fgColor-muted);
 }
 
 .tricks {
