@@ -184,6 +184,10 @@ interface ScoreboardProps {
 }
 
 function Scoreboard({ gameState, players, playerId }: ScoreboardProps) {
+  const renderValue = (value: number | undefined) => {
+    return value == undefined ? <span className='placeholder'>-</span> : value
+  }
+
   return (
     <pre className='scoreboard-wrapper'>
       <table className='scoreboard'>
@@ -210,10 +214,10 @@ function Scoreboard({ gameState, players, playerId }: ScoreboardProps) {
               </td>
               {[0, 1, 2, 3, 4].map((roundIndex) => (
                 <td className='col-score' key={roundIndex}>
-                  {player.scores[roundIndex] != undefined ? player.scores[roundIndex] : <span className='placeholder'>-</span>}
+                  {renderValue(player.scores[roundIndex])}
                 </td>
               ))}
-              <td className='col-score'>{player.total_score != undefined ? player.total_score : <span className='placeholder'>-</span>}</td>
+              <td className='col-score'>{renderValue(player.total_score)}</td>
             </tr>
           ))}
         </tbody>
