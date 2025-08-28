@@ -8,6 +8,7 @@
   --easeOutExpo: cubic-bezier(0.16, 1, 0.3, 1);
   --fgColor-card: #000;
   --fgColor-default: #000;
+  --fgColor-subtle: #aaa;
   --height-card: calc(1.25rem * 3.5);
   --rotate-left: -5.625deg;
   --rotate-right: 5.625deg;
@@ -25,6 +26,7 @@
     --bgColor-default: #333;
     --bgColor-inset: #444;
     --fgColor-default: #fff;
+    --fgColor-subtle: #666;
   }
 }
 
@@ -95,6 +97,7 @@ details.penalties-wrapper {
 
 details.penalties-wrapper > summary {
   list-style: none;
+  width: fit-content;
 }
 
 details.penalties-wrapper > summary::before {
@@ -179,6 +182,10 @@ ul.penalties {
 
 .discard-pile > .card.animate:nth-child(even) {
   animation: animateEvenCard 500ms var(--easeOutExpo);
+}
+
+.divider {
+  color: var(--fgColor-subtle);
 }
 
 .hand {

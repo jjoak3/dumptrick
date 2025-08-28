@@ -77,15 +77,21 @@ function App() {
   return (
     <>
       <div className='app'>
-        🚛 dumptrick
+        <span className='logo'>🚛 dumptrick</span>
+        {gameState && (
+          <GameControls //
+            gameState={gameState}
+            handleAction={handleAction}
+          />
+        )}
+        <p className='divider'>***</p>
         {gameState?.game_phase == 'NOT_STARTED' && players?.[playerId] && (
           <Lobby //
-            handleAction={handleAction}
             players={players}
             playerId={playerId}
           />
         )}
-        {gameState?.game_phase == 'STARTED' && players?.[playerId] && (
+        {gameState && gameState.game_phase != 'NOT_STARTED' && players?.[playerId] && (
           <GameBoard //
             gameState={gameState}
             handleAction={handleAction}
@@ -100,13 +106,26 @@ function App() {
 
 export default App
 
+interface GameControlsProps {
+  gameState: GameState
+  handleAction: (action: string, card?: string) => void
+}
+
+function GameControls({ gameState, handleAction }: GameControlsProps) {
+  return (
+    <p className='game-controls'>
+      {gameState?.game_phase == 'NOT_STARTED' && <button onClick={() => handleAction('start_game')}>Start game</button>}
+      {gameState?.game_phase == 'GAME_COMPLETE' && <button onClick={() => handleAction('reset_game')}>Reset game</button>}
+    </p>
+  )
+}
+
 interface LobbyProps {
-  handleAction: (action: string) => void
   players: Players
   playerId: string
 }
 
-function Lobby({ handleAction, players, playerId }: LobbyProps) {
+function Lobby({ players, playerId }: LobbyProps) {
   return (
     <div className='lobby'>
       <p>Players:</p>
@@ -117,9 +136,6 @@ function Lobby({ handleAction, players, playerId }: LobbyProps) {
           </li>
         ))}
       </ol>
-      <p>
-        <button onClick={() => handleAction('start_game')}>Start game</button>
-      </p>
     </div>
   )
 }
@@ -142,16 +158,11 @@ function GameBoard({ gameState, players, playerId, handleAction }: GameBoardProp
       <Penalties //
         gameState={gameState}
       />
-      {gameState.game_phase == 'GAME_COMPLETE' && (
-        <p>
-          <button onClick={() => handleAction('restart_game')}>Restart game</button>
-        </p>
-      )}
-      <p>***</p>
+      <p className='divider'>***</p>
       <DiscardPile //
         gameState={gameState}
       />
-      <p>***</p>
+      <p className='divider'>***</p>
       <p>My hand:</p>
       <Hand //
         gameState={gameState}
