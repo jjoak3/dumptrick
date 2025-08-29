@@ -591,9 +591,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
             )
     except WebSocketDisconnect:
-        player = game_controller.players.get(player_id)
+        players = game_controller.players
+        player = players.get(player_id)
+        game_phase = game_controller.game_state.game_phase
+
         if player:
             player.clear_websocket()
+
+        if game_phase == GamePhase.NOT_STARTED:
+            del players[player_id]
+            await broadcast({"players": players.to_dict()})
 
 
 """Execution"""
