@@ -103,6 +103,7 @@ function App() {
             playerId={playerId}
           />
         )}
+        {gameState?.game_phase != 'NOT_STARTED' && !players?.[playerId] && <p>A game is already in session.</p>}
       </div>
     </>
   )
