@@ -1,9 +1,12 @@
 :root {
   --bgColor-card: #fff;
   --borderColor-card: #aaa;
+  --borderColor-default: #999;
   --borderColor-focus: #000;
   --borderRadius-card: 0.333rem;
   --borderWidth-card: 0.125rem;
+  --borderWidth-default: 0.125rem;
+  --borderWidth-focus: 0.25rem;
   --easeOutExpo: cubic-bezier(0.16, 1, 0.3, 1);
   --fgColor-card: #000;
   --fgColor-default: #000;
@@ -24,6 +27,8 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bgColor-default: #333;
+    --borderColor-default: #aaa;
+    --borderColor-focus: #fff;
     --fgColor-default: #fff;
     --fgColor-muted: #aaa;
     --fgColor-subtle: #666;
@@ -40,6 +45,7 @@ html {
   font-family: monospace;
   font-size: 14px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -54,9 +60,15 @@ button {
   color: inherit;
   font-family: inherit;
   font-size: inherit;
+  line-height: inherit;
   padding: 0;
   text-decoration: underline;
   width: auto;
+}
+
+button:focus,
+input:focus {
+  outline: var(--borderWidth-focus) solid var(--borderColor-focus);
 }
 
 button:has(.card) {
@@ -118,6 +130,22 @@ hr {
 hr::before {
   color: var(--fgColor-subtle);
   content: '* = * = *';
+}
+
+input {
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  height: fit-content;
+  line-height: inherit;
+  outline: var(--borderWidth-default) solid var(--borderColor-default);
+}
+
+input::placeholder {
+  color: var(--fgColor-muted);
 }
 
 ol {

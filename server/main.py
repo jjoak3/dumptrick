@@ -390,14 +390,14 @@ class Players(Dict[str, Player]):
 
     def add_bot(self, player_id: str):
         self[player_id] = Player(
-            name=f"Bot {player_id}",
+            name=f"Bot #{player_id}",
             player_id=player_id,
             type=PlayerType.BOT,
         )
 
     def add_player(self, player_id: str):
         self[player_id] = Player(
-            name=f"Player {player_id}",
+            name=f"Player #{player_id}",
             player_id=player_id,
             type=PlayerType.HUMAN,
         )

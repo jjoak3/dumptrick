@@ -129,14 +129,39 @@ interface LobbyProps {
 }
 
 function Lobby({ players, playerId }: LobbyProps) {
+  const [playerName, setPlayerName] = useState(() => players[playerId]?.name)
+
+  const renderItem = (player: Player) => {
+    if (player.player_id == playerId) {
+      const placeholder = 'Choose a name...'
+      const inputWidth = Math.max(playerName?.length || placeholder.length)
+
+      return (
+        <>
+          <input //
+            autoComplete='off'
+            autoFocus
+            onChange={(e) => setPlayerName(e.target.value)}
+            placeholder={placeholder}
+            type='text'
+            value={playerName}
+            size={inputWidth}
+            style={{ width: `${inputWidth}ch` }}
+          />
+          <span> (You)</span>
+        </>
+      )
+    } else {
+      return player.name
+    }
+  }
+
   return (
     <div className='lobby'>
       <p>Players:</p>
       <ol>
         {Object.values(players).map((player) => (
-          <li key={player.player_id}>
-            {player.name} {player.player_id === playerId && '(You)'}
-          </li>
+          <li key={player.player_id}>{renderItem(player)}</li>
         ))}
       </ol>
     </div>
