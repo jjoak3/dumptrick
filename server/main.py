@@ -150,6 +150,7 @@ class GameFlow:
         self.deck_manager = DeckManager()
 
     def start_game(self):
+        self.players.validate_names()
         self.players.fill_open_slots_with_bots()
 
         self.game_state.game_phase = GamePhase.STARTED
@@ -435,6 +436,11 @@ class Players(Dict[str, Player]):
             if score == lowest_score:
                 self[player_id].is_winner = True
 
+    def validate_names(self):
+        for player in self.values():
+            if not player.name:
+                player.name = f"Player #{player.player_id}"
+
     def to_dict(self) -> Dict[str, Player]:
         return {player_id: player.to_dict() for player_id, player in self.items()}
 
@@ -477,12 +483,18 @@ class GameController:
         self.players = Players()
         self.game_flow = GameFlow(self.game_state, self.players)
 
-    async def handle_action(self, action: str, player_id: str, card: str):
-        if action == "start_game":
+    async def handle_action(self, action: str, player_id: str, **kwargs):
+        if action == "update_name":
+            name = kwargs.get("name")
+            if name:
+                self.players[player_id].name = name
+
+        elif action == "start_game":
             self.game_flow.start_game()
 
         elif action == "play_card":
             player = self.players.get(player_id)
+            card = kwargs.get("card")
             success = await self.game_flow.play_card(player, card)
 
             if not success:
@@ -581,8 +593,9 @@ async def websocket_endpoint(websocket: WebSocket):
             data = json.loads(message)
             action = data.get("action")
             card = data.get("card")
+            name = data.get("name")
 
-            await game_controller.handle_action(action, player_id, card)
+            await game_controller.handle_action(action, player_id, card=card, name=name)
 
             await broadcast(
                 {

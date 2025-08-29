@@ -41,6 +41,10 @@
   padding: 0;
 }
 
+*:focus {
+  outline: var(--borderWidth-focus) solid var(--borderColor-focus);
+}
+
 html {
   font-family: monospace;
   font-size: 14px;
@@ -64,11 +68,6 @@ button {
   padding: 0;
   text-decoration: underline;
   width: auto;
-}
-
-button:focus,
-input:focus {
-  outline: var(--borderWidth-focus) solid var(--borderColor-focus);
 }
 
 button:has(.card) {
@@ -130,22 +129,6 @@ hr {
 hr::before {
   color: var(--fgColor-subtle);
   content: '* = * = *';
-}
-
-input {
-  background: none;
-  border: none;
-  border-radius: 0;
-  color: inherit;
-  font-family: inherit;
-  font-size: inherit;
-  height: fit-content;
-  line-height: inherit;
-  outline: var(--borderWidth-default) solid var(--borderColor-default);
-}
-
-input::placeholder {
-  color: var(--fgColor-muted);
 }
 
 ol {

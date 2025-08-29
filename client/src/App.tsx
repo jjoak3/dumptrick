@@ -70,9 +70,9 @@ function App() {
     if (gameState?.game_phase == 'STARTED') localStorage.setItem('dumptrick_player_id', playerId)
   }, [gameState, playerId])
 
-  const handleAction = (action: string, card?: string) => {
+  const handleAction = (action: string, data?: Record<string, string>) => {
     const websocket = websocketRef.current
-    const message = JSON.stringify({ action, card })
+    const message = JSON.stringify({ action, ...data })
 
     if (websocket) websocket.send(message)
   }
@@ -90,6 +90,7 @@ function App() {
         <hr />
         {gameState?.game_phase == 'NOT_STARTED' && players?.[playerId] && (
           <Lobby //
+            handleAction={handleAction}
             players={players}
             playerId={playerId}
           />
@@ -111,7 +112,7 @@ export default App
 
 interface GameControlsProps {
   gameState: GameState
-  handleAction: (action: string, card?: string) => void
+  handleAction: (action: string, data?: Record<string, string>) => void
 }
 
 function GameControls({ gameState, handleAction }: GameControlsProps) {
@@ -124,35 +125,33 @@ function GameControls({ gameState, handleAction }: GameControlsProps) {
 }
 
 interface LobbyProps {
+  handleAction: (action: string, data?: Record<string, string>) => void
   players: Players
   playerId: string
 }
 
-function Lobby({ players, playerId }: LobbyProps) {
+function Lobby({ handleAction, players, playerId }: LobbyProps) {
   const [playerName, setPlayerName] = useState(() => players[playerId]?.name)
+
+  useEffect(() => {
+    handleAction('update_name', { name: playerName })
+  }, [playerName])
+
+  const handlePrompt = () => {
+    const newName = prompt('Enter a new name:', playerName)
+    if (newName) setPlayerName(newName)
+  }
 
   const renderItem = (player: Player) => {
     if (player.player_id == playerId) {
-      const placeholder = 'Choose a name...'
-      const inputWidth = Math.max(playerName?.length || placeholder.length)
-
       return (
         <>
-          <input //
-            autoComplete='off'
-            autoFocus
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder={placeholder}
-            type='text'
-            value={playerName}
-            size={inputWidth}
-            style={{ width: `${inputWidth}ch` }}
-          />
-          <span> (You)</span>
+          <span>{player.name} (You) </span>
+          <button onClick={() => handlePrompt()}>Change name</button>
         </>
       )
     } else {
-      return player.name
+      return <span>{player.name}</span>
     }
   }
 
@@ -170,7 +169,7 @@ function Lobby({ players, playerId }: LobbyProps) {
 
 interface GameBoardProps {
   gameState: GameState
-  handleAction: (action: string, card?: string) => void
+  handleAction: (action: string, data?: Record<string, string>) => void
   players: Players
   playerId: string
 }
@@ -191,13 +190,13 @@ function GameBoard({ gameState, players, playerId, handleAction }: GameBoardProp
         gameState={gameState}
       />
       <hr />
-      <p>My hand:</p>
+      <p>Your hand:</p>
       <Hand //
         gameState={gameState}
         handleAction={handleAction}
         player={players[playerId]}
       />
-      <p>My tricks:</p>
+      <p>Your tricks:</p>
       <Tricks //
         tricks={players[playerId].tricks}
       />
@@ -308,7 +307,7 @@ function DiscardPile({ gameState }: DiscardPile) {
 
 interface HandProps {
   gameState: GameState
-  handleAction: (action: string, card?: string) => void
+  handleAction: (action: string, data?: Record<string, string>) => void
   player: Player
 }
 
@@ -336,7 +335,7 @@ function Hand({ gameState, handleAction, player }: HandProps) {
           card={card}
           disabled={isCardDisabled(card)}
           key={card}
-          onClick={() => handleAction('play_card', card)}
+          onClick={() => handleAction('play_card', { card })}
         />
       ))}
     </div>
