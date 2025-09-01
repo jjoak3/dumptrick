@@ -117,10 +117,14 @@ interface GameControlsProps {
 }
 
 function GameControls({ gameState, handleAction }: GameControlsProps) {
+  const handleEndGame = () => {
+    if (confirm('Are you sure you want to end the game for everyone?')) handleAction('end_game')
+  }
+
   return (
     <p className='game-controls'>
       {gameState?.game_phase == 'NOT_STARTED' && <button onClick={() => handleAction('start_game')}>Start game</button>}
-      {gameState?.game_phase == 'GAME_COMPLETE' && <button onClick={() => handleAction('reset_game')}>Reset game</button>}
+      {gameState?.game_phase != 'NOT_STARTED' && <button onClick={handleEndGame}>End game</button>}
     </p>
   )
 }

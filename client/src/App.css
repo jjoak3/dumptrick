@@ -211,6 +211,11 @@ ul.penalties {
   color: var(--fgColor-subtle);
 }
 
+.game-controls {
+  display: flex;
+  gap: var(--spacing-4);
+}
+
 .hand {
   display: flex;
   flex-wrap: wrap;

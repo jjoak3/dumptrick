@@ -234,7 +234,7 @@ class GameFlow:
         self.players.calculate_scores(self.game_state.current_round)
 
         if self.game_state.current_round >= 5:
-            return self._end_game()
+            return self._complete_game()
 
         self.game_state.round_start_index = rotate_index(
             self.game_state.round_start_index, len(self.game_state.turn_order)
@@ -245,22 +245,9 @@ class GameFlow:
         self._setup_new_round()
         self.players.clear_tricks()
 
-    def _end_game(self):
+    def _complete_game(self):
         self.game_state.game_phase = GamePhase.GAME_COMPLETE
         self.players.set_winners()
-
-    def restart_game(self):
-        self.game_state.current_round = 0
-        self.game_state.current_trick = Trick()
-        self.game_state.discard_pile.clear()
-        self.game_state.game_phase = GamePhase.STARTED
-        self.game_state.round_start_index = 0
-        self.game_state.trick_start_index = 0
-        self.game_state.turn_order_index = 0
-
-        self._setup_new_round()
-        self.players.clear_scores()
-        self.players.clear_tricks()
 
 
 class ScoreCalculator:
@@ -408,6 +395,15 @@ class Players(Dict[str, Player]):
             score = self.score_calculator.calculate_round_score(player, current_round)
             player.scores.append(score)
 
+    def clear_bots(self):
+        bot_ids = [
+            player.player_id
+            for player in self.values()
+            if player.type == PlayerType.BOT
+        ]
+        for bot_id in bot_ids:
+            del self[bot_id]
+
     def clear_scores(self):
         for player in self.values():
             player.scores.clear()
@@ -427,6 +423,15 @@ class Players(Dict[str, Player]):
             total_scores[player_id] = sum(player.scores)
 
         return total_scores
+
+    def reset(self):
+        self.clear_bots()
+
+        for player in self.values():
+            player.hand.clear()
+            player.is_winner = False
+            player.scores.clear()
+            player.tricks.clear()
 
     def set_winners(self):
         total_scores = self.get_total_scores()
@@ -505,8 +510,10 @@ class GameController:
 
             await self._handle_bot_turns()
 
-        elif action == "restart_game":
-            self.game_flow.restart_game()
+        elif action == "end_game":
+            self.game_state = GameState()
+            self.players.reset()
+            self.game_flow = GameFlow(self.game_state, self.players)
 
     async def _handle_bot_turns(self):
         while self.game_state.game_phase == GamePhase.STARTED:
@@ -532,7 +539,7 @@ class GameController:
             "players": self.players.to_dict(),
         }
 
-        await broadcast(payload)
+        await broadcast_to_players(payload)
         await asyncio.sleep(0.5)  # Give players time to see played card
 
     def get_session_data(self, player_id: str) -> Dict[str, Any]:
@@ -549,7 +556,7 @@ class GameController:
 game_controller = GameController()
 
 
-async def broadcast(payload: Dict[str, Any]):
+async def broadcast_to_players(payload: Dict[str, Any]):
     for player in game_controller.players.values():
         if not player.websocket:
             continue
@@ -582,7 +589,7 @@ async def websocket_endpoint(websocket: WebSocket):
             return
 
         game_controller.players.add_player(player_id)
-        await broadcast({"players": game_controller.players.to_dict()})
+        await broadcast_to_players({"players": game_controller.players.to_dict()})
 
     game_controller.players.get(player_id).set_websocket(websocket)
     await websocket.send_json(game_controller.get_session_data(player_id))
@@ -597,7 +604,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             await game_controller.handle_action(action, player_id, card=card, name=name)
 
-            await broadcast(
+            await broadcast_to_players(
                 {
                     "game_state": game_controller.game_state.to_dict(),
                     "players": game_controller.players.to_dict(),
@@ -608,12 +615,16 @@ async def websocket_endpoint(websocket: WebSocket):
         player = players.get(player_id)
         game_phase = game_controller.game_state.game_phase
 
+        if player_id not in players:
+            return
+
         if player:
             player.clear_websocket()
 
         if game_phase == GamePhase.NOT_STARTED:
             del players[player_id]
-            await broadcast({"players": players.to_dict()})
+
+        await broadcast_to_players({"players": players.to_dict()})
 
 
 """Execution"""
