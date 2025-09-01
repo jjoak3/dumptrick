@@ -289,8 +289,6 @@ interface DiscardPile {
 }
 
 function DiscardPile({ gameState }: DiscardPile) {
-  if (gameState.discard_pile.length == 0) return <div className='discard-pile'></div>
-
   return (
     <div className='discard-pile'>
       {gameState.discard_pile.map((card, index) => {

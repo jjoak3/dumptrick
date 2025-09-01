@@ -101,6 +101,20 @@ button:focus > .card {
   outline: var(--borderWidth-card) solid var(--borderColor-focus);
 }
 
+.card {
+  align-items: center;
+  background-color: var(--bgColor-card);
+  border: var(--borderWidth-card) solid var(--borderColor-card);
+  border-radius: var(--borderRadius-card);
+  color: var(--fgColor-card);
+  display: flex;
+  gap: var(--spacing-1);
+  height: var(--height-card);
+  justify-content: center;
+  user-select: none;
+  width: var(--width-card);
+}
+
 details.penalties-wrapper {
   color: var(--fgColor-muted);
   font-style: italic;
@@ -119,6 +133,10 @@ details.penalties-wrapper > summary::before {
 
 details.penalties-wrapper[open] > summary::before {
   content: '- ';
+}
+
+.penalties {
+  list-style: none;
 }
 
 hr {
@@ -144,27 +162,9 @@ p {
   margin-top: var(--spacing-4);
 }
 
-ul.penalties {
-  list-style: none;
-}
-
 .app {
   overflow: hidden;
   padding: var(--spacing-4);
-}
-
-.card {
-  align-items: center;
-  background-color: var(--bgColor-card);
-  border: var(--borderWidth-card) solid var(--borderColor-card);
-  border-radius: var(--borderRadius-card);
-  color: var(--fgColor-card);
-  display: flex;
-  gap: var(--spacing-1);
-  height: var(--height-card);
-  justify-content: center;
-  user-select: none;
-  width: var(--width-card);
 }
 
 .discard-pile {
@@ -205,10 +205,6 @@ ul.penalties {
 
 .discard-pile > .card.animate:nth-child(even) {
   animation: animateEvenCard 500ms var(--easeOutExpo);
-}
-
-.divider {
-  color: var(--fgColor-subtle);
 }
 
 .game-controls {
