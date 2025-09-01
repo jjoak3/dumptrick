@@ -220,6 +220,12 @@ p {
   min-height: var(--height-card);
 }
 
+.logo > * {
+  animation: wiggle 2s ease-in-out infinite;
+  display: inline-block;
+  white-space: pre;
+}
+
 .scoreboard-wrapper {
   margin-top: var(--spacing-4);
   overflow-x: auto;

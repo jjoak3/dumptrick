@@ -80,7 +80,7 @@ function App() {
   return (
     <>
       <div className='app'>
-        <span className='logo'>🚛 dumptrick</span>
+        <Logo />
         {gameState && (
           <GameControls //
             gameState={gameState}
@@ -110,6 +110,17 @@ function App() {
 }
 
 export default App
+
+function Logo() {
+  const logoString = '🚛 dumptrick'
+  return (
+    <span className='logo'>
+      {Array.from(logoString).map((char, index) => (
+        <div key={index}>{char}</div>
+      ))}
+    </span>
+  )
+}
 
 interface GameControlsProps {
   gameState: GameState
