@@ -3,7 +3,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from logging import error
 from nanoid import generate
-from pydantic import BaseModel
 from typing import Any, Dict, List
 import asyncio
 import json
@@ -150,8 +149,7 @@ class GameFlow:
         self.deck_manager = DeckManager()
 
     def start_game(self):
-        self.players.validate_names()
-        self.players.fill_open_slots_with_bots()
+        self.players.fill_openings_with_bots()
 
         self.game_state.game_phase = GamePhase.STARTED
         self._setup_new_round()
@@ -218,13 +216,15 @@ class GameFlow:
         if self._is_round_over():
             self.game_state.current_trick.is_last_trick = True
 
-        self.players.get(self.game_state.current_trick.winner).take_trick(
-            self.game_state.current_trick
-        )
+        winner_id = self.game_state.current_trick.winner
+        if not winner_id:
+            return
+        if winner_id not in self.players:
+            return
 
-        self.game_state.turn_order_index = self.game_state.turn_order.index(
-            self.game_state.current_trick.winner
-        )
+        self.players.get(winner_id).take_trick(self.game_state.current_trick)
+
+        self.game_state.turn_order_index = self.game_state.turn_order.index(winner_id)
         self.game_state.trick_start_index = self.game_state.turn_order_index
 
         self.game_state.current_trick = Trick()
@@ -310,12 +310,13 @@ class ScoreCalculator:
 """Models"""
 
 
-class Trick(BaseModel):
-    cards: List[str] = []
-    is_last_trick: bool = False
-    leading_suit: str = ""
-    winner: str = ""
-    winning_card: str = ""
+class Trick:
+    def __init__(self):
+        self.cards: List[str] = []
+        self.is_last_trick: bool = False
+        self.leading_suit: str = ""
+        self.winner: str = ""
+        self.winning_card: str = ""
 
     def update_trick(self, card: str, player_id: str):
         if not self.leading_suit:
@@ -332,23 +333,21 @@ class Trick(BaseModel):
         }
 
 
-class Player(BaseModel):
-    model_config = {"arbitrary_types_allowed": True}
-
-    hand: List[str] = []
-    is_winner: bool = False
-    name: str = ""
-    player_id: str = ""
-    scores: List[int] = []
-    tricks: List[Trick] = []
-    type: PlayerType = PlayerType.HUMAN
-    websocket: WebSocket = None
-
-    def has_suit(self, suit: str) -> bool:
-        return any(parse_card(card)[1] == suit for card in self.hand)
-
-    def is_bot(self) -> bool:
-        return self.type == PlayerType.BOT
+class Player:
+    def __init__(
+        self,
+        player_id: str,
+        name: str = "",
+        type: PlayerType = PlayerType.HUMAN,
+    ):
+        self.hand: List[str] = []
+        self.is_winner: bool = False
+        self.name: str = name or f"Player #{player_id}"
+        self.player_id: str = player_id
+        self.scores: List[int] = []
+        self.tricks: List[Trick] = []
+        self.type: PlayerType = type or PlayerType.HUMAN
+        self.websocket: WebSocket = None
 
     def set_websocket(self, websocket: WebSocket):
         self.websocket = websocket
@@ -356,8 +355,20 @@ class Player(BaseModel):
     def clear_websocket(self):
         self.websocket = None
 
+    def is_bot(self) -> bool:
+        return self.type == PlayerType.BOT
+
+    def has_suit(self, suit: str) -> bool:
+        return any(parse_card(card)[1] == suit for card in self.hand)
+
     def take_trick(self, trick: Trick):
         self.tricks.append(trick)
+
+    def reset(self):
+        self.hand.clear()
+        self.is_winner = False
+        self.scores.clear()
+        self.tricks.clear()
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -376,6 +387,9 @@ class Players(Dict[str, Player]):
         super().__init__()
         self.score_calculator = ScoreCalculator()
 
+    def add_player(self, player_id: str):
+        self[player_id] = Player(player_id=player_id)
+
     def add_bot(self, player_id: str):
         self[player_id] = Player(
             name=f"Bot #{player_id}",
@@ -383,40 +397,31 @@ class Players(Dict[str, Player]):
             type=PlayerType.BOT,
         )
 
-    def add_player(self, player_id: str):
-        self[player_id] = Player(
-            name=f"Player #{player_id}",
-            player_id=player_id,
-            type=PlayerType.HUMAN,
-        )
+    def fill_openings_with_bots(self):
+        while len(self) < MAX_PLAYERS:
+            self.add_bot(generate_player_id())
+
+    def clear_tricks(self):
+        for player in self.values():
+            player.tricks.clear()
 
     def calculate_scores(self, current_round: int):
         for player in self.values():
             score = self.score_calculator.calculate_round_score(player, current_round)
             player.scores.append(score)
 
-    def clear_bots(self):
-        bot_ids = [
-            player.player_id
-            for player in self.values()
-            if player.type == PlayerType.BOT
-        ]
-        for bot_id in bot_ids:
-            del self[bot_id]
+    def set_winners(self):
+        total_scores = self._get_total_scores()
+        if not total_scores:
+            return
 
-    def clear_scores(self):
-        for player in self.values():
-            player.scores.clear()
+        lowest_score = min(total_scores.values())
 
-    def clear_tricks(self):
-        for player in self.values():
-            player.tricks.clear()
+        for player_id, score in total_scores.items():
+            if score == lowest_score:
+                self[player_id].is_winner = True
 
-    def fill_open_slots_with_bots(self):
-        while len(self) < MAX_PLAYERS:
-            self.add_bot(generate_player_id())
-
-    def get_total_scores(self) -> Dict[str, int]:
+    def _get_total_scores(self) -> Dict[str, int]:
         total_scores = {}
 
         for player_id, player in self.items():
@@ -425,41 +430,35 @@ class Players(Dict[str, Player]):
         return total_scores
 
     def reset(self):
-        self.clear_bots()
+        self._clear_bots()
 
         for player in self.values():
-            player.hand.clear()
-            player.is_winner = False
-            player.scores.clear()
-            player.tricks.clear()
+            player.reset()
 
-    def set_winners(self):
-        total_scores = self.get_total_scores()
-        lowest_score = min(total_scores.values())
-
-        for player_id, score in total_scores.items():
-            if score == lowest_score:
-                self[player_id].is_winner = True
-
-    def validate_names(self):
-        for player in self.values():
-            if not player.name:
-                player.name = f"Player #{player.player_id}"
+    def _clear_bots(self):
+        bot_ids = [
+            player.player_id
+            for player in self.values()
+            if player.type == PlayerType.BOT
+        ]
+        for bot_id in bot_ids:
+            del self[bot_id]
 
     def to_dict(self) -> Dict[str, Player]:
         return {player_id: player.to_dict() for player_id, player in self.items()}
 
 
-class GameState(BaseModel):
-    current_round: int = 0
-    current_trick: Trick = Trick()
-    discard_pile: List[str] = []
-    game_phase: GamePhase = GamePhase.NOT_STARTED
-    round_start_index: int = 0
-    turn_order: List[str] = []
-    turn_order_index: int = 0
-    turn_phase: TurnPhase = TurnPhase.NOT_STARTED
-    trick_start_index: int = 0
+class GameState:
+    def __init__(self):
+        self.current_round: int = 0
+        self.current_trick: Trick = Trick()
+        self.discard_pile: List[str] = []
+        self.game_phase: GamePhase = GamePhase.NOT_STARTED
+        self.round_start_index: int = 0
+        self.turn_order: List[str] = []
+        self.turn_order_index: int = 0
+        self.turn_phase: TurnPhase = TurnPhase.NOT_STARTED
+        self.trick_start_index: int = 0
 
     @property
     def current_player_id(self) -> str:
@@ -467,6 +466,9 @@ class GameState(BaseModel):
 
     def set_turn_order(self, players: Players):
         self.turn_order = [player.player_id for player in players.values()]
+
+    def reset(self):
+        self.__init__()
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -489,41 +491,53 @@ class GameController:
         self.game_flow = GameFlow(self.game_state, self.players)
 
     async def handle_action(self, action: str, player_id: str, **kwargs):
+        player = self.players.get(player_id)
+        if not player:
+            return
+
         if action == "update_name":
-            name = kwargs.get("name")
-            if name:
-                self.players[player_id].name = name
+            name = kwargs.get("name", "").strip()
+            if not name:
+                return
+
+            player.name = name
 
         elif action == "start_game":
-            self.game_flow.start_game()
+            if self.game_state.game_phase == GamePhase.NOT_STARTED:
+                self.game_flow.start_game()
 
         elif action == "play_card":
-            player = self.players.get(player_id)
             card = kwargs.get("card")
-            success = await self.game_flow.play_card(player, card)
+            if not card:
+                return
 
-            if not success:
+            if self.game_state.game_phase != GamePhase.STARTED:
+                return
+
+            isValidPlay = await self.game_flow.play_card(player, card)
+            if not isValidPlay:
                 return
 
             await self._broadcast_game_state()
             self.game_flow.advance_turn()
-
             await self._handle_bot_turns()
 
         elif action == "end_game":
-            self.game_state = GameState()
+            self.game_state.reset()
             self.players.reset()
             self.game_flow = GameFlow(self.game_state, self.players)
 
     async def _handle_bot_turns(self):
         while self.game_state.game_phase == GamePhase.STARTED:
             next_player = self.players.get(self.game_state.current_player_id)
-
+            if not next_player:
+                break
             if not next_player.is_bot():
                 break
 
             card = self.game_flow.bot_strategy.choose_card(
-                next_player, self.game_state.current_trick
+                next_player,
+                self.game_state.current_trick,
             )
             success = await self.game_flow.play_card(next_player, card)
 
@@ -611,20 +625,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
             )
     except WebSocketDisconnect:
-        players = game_controller.players
-        player = players.get(player_id)
-        game_phase = game_controller.game_state.game_phase
-
-        if player_id not in players:
+        player = game_controller.players.get(player_id)
+        if not player:
             return
 
-        if player:
-            player.clear_websocket()
+        player.clear_websocket()
 
-        if game_phase == GamePhase.NOT_STARTED:
-            del players[player_id]
+        if game_controller.game_state.game_phase == GamePhase.NOT_STARTED:
+            del game_controller.players[player_id]
 
-        await broadcast_to_players({"players": players.to_dict()})
+        await broadcast_to_players({"players": game_controller.players.to_dict()})
 
 
 """Execution"""
