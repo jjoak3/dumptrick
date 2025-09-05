@@ -67,7 +67,7 @@ function App() {
 
   useEffect(() => {
     if (gameState?.game_phase == 'NOT_STARTED') localStorage.removeItem('dumptrick_player_id')
-    if (gameState?.game_phase == 'STARTED') localStorage.setItem('dumptrick_player_id', playerId)
+    if (gameState?.game_phase == 'IN_PROGRESS') localStorage.setItem('dumptrick_player_id', playerId)
   }, [gameState, playerId])
 
   const handleAction = (action: string, data?: Record<string, string>) => {
