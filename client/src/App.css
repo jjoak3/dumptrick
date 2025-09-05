@@ -80,7 +80,7 @@ button:disabled > .card {
   opacity: 0.5;
 }
 
-@keyframes wiggle {
+@keyframes cardWiggle {
   0%,
   100% {
     transform: rotate(var(--rotate-left)) translateY(calc(var(--spacing-2) * -1));
@@ -92,7 +92,7 @@ button:disabled > .card {
 
 button:focus > .card,
 button:not(:disabled):hover > .card {
-  animation: wiggle 2s ease-in-out infinite;
+  animation: cardWiggle 2s ease-in-out infinite;
   z-index: 1;
 }
 
@@ -220,8 +220,18 @@ p {
   min-height: var(--height-card);
 }
 
+@keyframes logoWiggle {
+  0%,
+  100% {
+    transform: rotate(var(--rotate-left));
+  }
+  50% {
+    transform: rotate(var(--rotate-right));
+  }
+}
+
 .logo > * {
-  animation: wiggle 2s ease-in-out infinite;
+  animation: logoWiggle 2s ease-in-out infinite;
   display: inline-block;
   white-space: pre;
 }
