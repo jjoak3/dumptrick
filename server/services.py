@@ -49,15 +49,15 @@ class DeckManager:
         self.deck = DECK.copy()
 
 
-class GameFlow:
-    def __init__(self, game_state: "GameState", players: "Players"):
-        self.game_state = game_state
-        self.players = players
+class GameEngine:
+    def __init__(self):
+        self.game_state = GameState()
+        self.players = Players()
         self.bot_strategy = BotStrategy()
         self.deck_manager = DeckManager()
 
     def start_game(self):
-        self.players.fill_openings_with_bots()
+        self.players.add_bots()
 
         self.game_state.game_phase = GamePhase.IN_PROGRESS
         self._setup_new_round()
@@ -75,16 +75,14 @@ class GameFlow:
     def _set_turn_order(self):
         self.game_state.turn_order = list(self.players.keys())
 
-    async def play_card(self, player: "Player", card: str) -> bool:
+    async def play_card(self, player: "Player", card: str):
         if not self._is_valid_play(player, card):
-            return False
+            return
 
         player.hand.remove(card)
         self.game_state.discard_pile.append(card)
         self.game_state.current_trick.update(card, player.player_id)
         self.game_state.turn_phase = TurnPhase.TURN_COMPLETE
-
-        return True
 
     def _is_valid_play(self, player: "Player", card: str) -> bool:
         if card not in player.hand:
@@ -164,6 +162,10 @@ class GameFlow:
     def _complete_game(self):
         self.game_state.game_phase = GamePhase.GAME_COMPLETE
         ScoreCalculator.set_winners(self.players)
+
+    def reset(self):
+        self.game_state.reset()
+        self.players.reset()
 
 
 class ScoreCalculator:

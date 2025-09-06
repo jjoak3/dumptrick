@@ -52,6 +52,20 @@ class Player:
     def clear_websocket(self):
         self.websocket = None
 
+    async def send(self, payload: Dict[str, Any]):
+        if not self.websocket:
+            return
+
+        try:
+            await self.websocket.send_json(payload)
+        except Exception:
+            self.clear_websocket()
+
+    def update_name(self, name: str):
+        if not name:
+            return
+        self.name = name.strip()
+
     def is_bot(self) -> bool:
         return self.type == PlayerType.BOT
 
@@ -87,6 +101,12 @@ class Players(Dict[str, Player]):
     def __init__(self):
         super().__init__()
 
+    def is_new_player(self, player_id: str) -> bool:
+        return not player_id or player_id not in self
+
+    def is_full(self) -> bool:
+        return len(self) >= MAX_PLAYERS
+
     def add_player(self, player_id: str):
         self[player_id] = Player(
             name=f"Player #{player_id}",
@@ -94,16 +114,16 @@ class Players(Dict[str, Player]):
             type=PlayerType.HUMAN,
         )
 
-    def add_bot(self, player_id: str):
+    def add_bots(self):
+        while len(self) < MAX_PLAYERS:
+            self._add_bot(generate_player_id())
+
+    def _add_bot(self, player_id: str):
         self[player_id] = Player(
             name=f"Bot #{player_id}",
             player_id=player_id,
             type=PlayerType.BOT,
         )
-
-    def fill_openings_with_bots(self):
-        while len(self) < MAX_PLAYERS:
-            self.add_bot(generate_player_id())
 
     def clear_tricks(self):
         for player in self.values():
@@ -124,6 +144,10 @@ class Players(Dict[str, Player]):
             if player.type == PlayerType.BOT:
                 bot_ids.append(player.player_id)
         return bot_ids
+
+    async def broadcast(self, payload: Dict[str, Any]):
+        for player in self.values():
+            await player.send(payload)
 
     def to_dict(self) -> Dict[str, Player]:
         return {player_id: player.to_dict() for player_id, player in self.items()}
