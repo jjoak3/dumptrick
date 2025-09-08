@@ -6,27 +6,35 @@ from enums import GamePhase, PlayerType, TurnPhase
 from helpers import generate_player_id, is_higher_rank, parse_card
 
 
-class Trick:
+class GameState:
     def __init__(self):
-        self.cards: List[str] = []
-        self.is_last_trick: bool = False
-        self.leading_suit: str = ""
-        self.winner: str = ""
-        self.winning_card: str = ""
+        self.current_round: int = 0
+        self.current_trick: Trick = Trick()
+        self.discard_pile: List[str] = []
+        self.game_phase: GamePhase = GamePhase.NOT_STARTED
+        self.round_start_index: int = 0
+        self.turn_order: List[str] = []
+        self.current_turn_index: int = 0
+        self.turn_phase: TurnPhase = TurnPhase.NOT_STARTED
+        self.trick_start_index: int = 0
 
-    def update(self, card: str, player_id: str):
-        if not self.leading_suit:
-            card_suit = card[-1]
-            self.leading_suit = card_suit
+    @property
+    def current_player_id(self) -> str:
+        if not self.turn_order:
+            return ""
+        return self.turn_order[self.current_turn_index]
 
-        if is_higher_rank(card, self.winning_card):
-            self.winning_card = card
-            self.winner = player_id
+    def reset(self):
+        self.__init__()
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "cards": self.cards,
-            "leading_suit": self.leading_suit,
+            "current_player_id": self.current_player_id,
+            "current_round": self.current_round,
+            "current_trick": self.current_trick.to_dict(),
+            "discard_pile": self.discard_pile,
+            "game_phase": self.game_phase.name,
+            "turn_phase": self.turn_phase.name,
         }
 
 
@@ -76,7 +84,7 @@ class Player:
                 return True
         return False
 
-    def take_trick(self, trick: Trick):
+    def take_trick(self, trick: "Trick"):
         self.tricks.append(trick)
 
     def reset(self):
@@ -153,33 +161,25 @@ class Players(Dict[str, Player]):
         return {player_id: player.to_dict() for player_id, player in self.items()}
 
 
-class GameState:
+class Trick:
     def __init__(self):
-        self.current_round: int = 0
-        self.current_trick: Trick = Trick()
-        self.discard_pile: List[str] = []
-        self.game_phase: GamePhase = GamePhase.NOT_STARTED
-        self.round_start_index: int = 0
-        self.turn_order: List[str] = []
-        self.turn_order_index: int = 0
-        self.turn_phase: TurnPhase = TurnPhase.NOT_STARTED
-        self.trick_start_index: int = 0
+        self.cards: List[str] = []
+        self.is_last_trick: bool = False
+        self.leading_suit: str = ""
+        self.winner: Player = None
+        self.winning_card: str = ""
 
-    @property
-    def current_player_id(self) -> str:
-        if not self.turn_order:
-            return ""
-        return self.turn_order[self.turn_order_index]
+    def update(self, card: str, player: Player):
+        if not self.leading_suit:
+            card_suit = card[-1]
+            self.leading_suit = card_suit
 
-    def reset(self):
-        self.__init__()
+        if is_higher_rank(card, self.winning_card):
+            self.winning_card = card
+            self.winner = player
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "current_player_id": self.current_player_id,
-            "current_round": self.current_round,
-            "current_trick": self.current_trick.to_dict(),
-            "discard_pile": self.discard_pile,
-            "game_phase": self.game_phase.name,
-            "turn_phase": self.turn_phase.name,
+            "cards": self.cards,
+            "leading_suit": self.leading_suit,
         }

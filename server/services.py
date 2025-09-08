@@ -29,17 +29,13 @@ class DeckManager:
     def shuffle(self):
         random.shuffle(self.deck)
 
-    def deal_hands(self, num_players: int) -> List[List[str]]:
-        hand_size = len(self.deck) // num_players
-        hands = []
+    def deal_hands(self, players: Players) -> List[List[str]]:
+        hand_size = len(self.deck) // len(players)
 
-        for _ in range(num_players):
-            hand = self.deck[:hand_size]
+        for player in players.values():
+            player.hand = self.deck[:hand_size]
             self.deck = self.deck[hand_size:]
-            hand.sort(key=self._get_card_sort_key)
-            hands.append(hand)
-
-        return hands
+            player.hand.sort(key=self._get_card_sort_key)
 
     def _get_card_sort_key(self, card: str) -> tuple[int, int]:
         rank, suit = parse_card(card)
@@ -67,10 +63,7 @@ class GameEngine:
 
         self.deck_manager.reset()
         self.deck_manager.shuffle()
-        hands = self.deck_manager.deal_hands(len(self.players))
-
-        for i, player in enumerate(self.players.values()):
-            player.hand = hands[i]
+        self.deck_manager.deal_hands(self.players)
 
     def _set_turn_order(self):
         self.game_state.turn_order = list(self.players.keys())
@@ -81,7 +74,8 @@ class GameEngine:
 
         player.hand.remove(card)
         self.game_state.discard_pile.append(card)
-        self.game_state.current_trick.update(card, player.player_id)
+
+        self.game_state.current_trick.update(card, player)
         self.game_state.turn_phase = TurnPhase.TURN_COMPLETE
 
     def _is_valid_play(self, player: "Player", card: str) -> bool:
@@ -101,8 +95,8 @@ class GameEngine:
         return True
 
     def advance_turn(self):
-        self.game_state.turn_order_index = rotate_index(
-            self.game_state.turn_order_index,
+        self.game_state.current_turn_index = rotate_index(
+            self.game_state.current_turn_index,
             len(self.game_state.turn_order),
         )
         self.game_state.turn_phase = TurnPhase.NOT_STARTED
@@ -114,13 +108,7 @@ class GameEngine:
             self._advance_round()
 
     def _is_trick_over(self) -> bool:
-        return self.game_state.turn_order_index == self.game_state.trick_start_index
-
-    def _is_round_over(self) -> bool:
-        for player in self.players.values():
-            if player.hand:
-                return False
-        return True
+        return self.game_state.current_turn_index == self.game_state.trick_start_index
 
     def _advance_trick(self):
         self.game_state.current_trick.cards = self.game_state.discard_pile.copy()
@@ -129,35 +117,36 @@ class GameEngine:
         if self._is_round_over():
             self.game_state.current_trick.is_last_trick = True
 
-        winner_id = self.game_state.current_trick.winner
-        if not winner_id:
-            return
-        if winner_id not in self.players:
-            return
+        self.game_state.current_trick.winner.take_trick(self.game_state.current_trick)
 
-        winner = self.players.get(winner_id)
-        winner.take_trick(self.game_state.current_trick)
-
-        self.game_state.turn_order_index = self.game_state.turn_order.index(winner_id)
-        self.game_state.trick_start_index = self.game_state.turn_order_index
+        winner_id = self.game_state.current_trick.winner.player_id
+        winner_index = self.game_state.turn_order.index(winner_id)
+        self.game_state.current_turn_index = winner_index
+        self.game_state.trick_start_index = winner_index
 
         self.game_state.current_trick = Trick()
+
+    def _is_round_over(self) -> bool:
+        return all(not player.hand for player in self.players.values())
 
     def _advance_round(self):
         self.game_state.current_round += 1
         ScoreCalculator.set_round_scores(self.players, self.game_state.current_round)
 
-        if self.game_state.current_round >= 5:
+        if self._is_game_over():
             return self._complete_game()
 
         self.game_state.round_start_index = rotate_index(
             self.game_state.round_start_index, len(self.game_state.turn_order)
         )
-        self.game_state.turn_order_index = self.game_state.round_start_index
+        self.game_state.current_turn_index = self.game_state.round_start_index
         self.game_state.trick_start_index = self.game_state.round_start_index
 
         self._setup_new_round()
         self.players.clear_tricks()
+
+    def _is_game_over(self) -> bool:
+        return self.game_state.current_round >= 5
 
     def _complete_game(self):
         self.game_state.game_phase = GamePhase.GAME_COMPLETE
@@ -172,31 +161,28 @@ class ScoreCalculator:
     @staticmethod
     def set_round_scores(players: "Players", current_round: int):
         for player in players.values():
-            score = ScoreCalculator.calculate_round_score(player, current_round)
+            score = ScoreCalculator._calculate_round_score(player, current_round)
             player.scores.append(score)
 
-    @staticmethod
-    def calculate_round_score(player: "Player", round_number: int) -> int:
+    def _calculate_round_score(player: "Player", round_number: int) -> int:
         score = 0
 
-        score += ScoreCalculator.calculate_card_count_penalty(player.tricks)
+        score += ScoreCalculator._calculate_card_count_penalty(player.tricks)
         if round_number >= 2:
-            score += ScoreCalculator.calculate_hearts_penalty(player.tricks)
+            score += ScoreCalculator._calculate_hearts_penalty(player.tricks)
         if round_number >= 3:
-            score += ScoreCalculator.calculate_queens_penalty(player.tricks)
+            score += ScoreCalculator._calculate_queens_penalty(player.tricks)
         if round_number >= 4:
-            score += ScoreCalculator.calculate_ks_penalty(player.tricks)
+            score += ScoreCalculator._calculate_ks_penalty(player.tricks)
         if round_number >= 5:
-            score += ScoreCalculator.calculate_last_trick_penalty(player.tricks)
+            score += ScoreCalculator._calculate_last_trick_penalty(player.tricks)
 
         return score
 
-    @staticmethod
-    def calculate_card_count_penalty(tricks: List["Trick"]) -> int:
+    def _calculate_card_count_penalty(tricks: List["Trick"]) -> int:
         return sum(len(trick.cards) for trick in tricks)
 
-    @staticmethod
-    def calculate_hearts_penalty(tricks: List["Trick"]) -> int:
+    def _calculate_hearts_penalty(tricks: List["Trick"]) -> int:
         penalty = 0
 
         for trick in tricks:
@@ -206,8 +192,7 @@ class ScoreCalculator:
 
         return penalty
 
-    @staticmethod
-    def calculate_queens_penalty(tricks: List["Trick"]) -> int:
+    def _calculate_queens_penalty(tricks: List["Trick"]) -> int:
         penalty = 0
 
         for trick in tricks:
@@ -217,8 +202,7 @@ class ScoreCalculator:
 
         return penalty
 
-    @staticmethod
-    def calculate_ks_penalty(tricks: List["Trick"]) -> int:
+    def _calculate_ks_penalty(tricks: List["Trick"]) -> int:
         penalty = 0
 
         for trick in tricks:
@@ -227,8 +211,7 @@ class ScoreCalculator:
 
         return penalty
 
-    @staticmethod
-    def calculate_last_trick_penalty(tricks: List["Trick"]) -> int:
+    def _calculate_last_trick_penalty(tricks: List["Trick"]) -> int:
         penalty = 0
 
         for trick in tricks:
