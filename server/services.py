@@ -71,7 +71,7 @@ class GameEngine:
             self._play_bot_turn(data["bot_id"])
 
         elif action == "reset_game":
-            self._reset_game()
+            self.reset_game()
 
         await self.players.broadcast(
             {
@@ -209,7 +209,7 @@ class GameEngine:
             self.handle_action("play_card", {"player_id": bot_id, "card": card})
         )
 
-    def _reset_game(self):
+    def reset_game(self):
         self.game_state.reset()
         self.players.reset()
 

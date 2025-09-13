@@ -1,7 +1,8 @@
+from datetime import datetime
 from fastapi import WebSocket
 from typing import Any, Dict, List
 
-from constants import MAX_PLAYERS
+from constants import GAME_EXPIRATION_SECONDS, MAX_PLAYERS
 from enums import GamePhase, PlayerType, TurnPhase
 from helpers import generate_player_id, is_higher_rank, parse_card
 
@@ -10,6 +11,7 @@ class GameState:
     def __init__(self):
         self.current_round: int = 0
         self.current_trick: Trick = Trick()
+        self.created_at: datetime = datetime.now()
         self.discard_pile: List[str] = []
         self.game_phase: GamePhase = GamePhase.NOT_STARTED
         self.round_start_index: int = 0
@@ -23,6 +25,13 @@ class GameState:
         if not self.turn_order:
             return ""
         return self.turn_order[self.current_turn_index]
+
+    def is_expired(self) -> bool:
+        if self.game_phase == GamePhase.NOT_STARTED:
+            return False
+
+        elapsed_time = datetime.now() - self.created_at
+        return elapsed_time.total_seconds() > GAME_EXPIRATION_SECONDS
 
     def reset(self):
         self.__init__()

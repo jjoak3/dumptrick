@@ -25,6 +25,9 @@ game_engine = GameEngine()
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
+    if game_engine.game_state.is_expired():
+        game_engine.reset_game()
+
     player_id = websocket.query_params.get("player_id")
     if game_engine.players.is_new_player(player_id):
         if game_engine.players.is_full():

@@ -7,6 +7,8 @@ DECK = [
     # fmt: on
 ]
 
+GAME_EXPIRATION_SECONDS = 3600
+
 MAX_PLAYERS = 4
 MIN_PLAYERS = 4
 
