@@ -29,10 +29,12 @@ interface Trick {
   leading_suit: string
 }
 
-const createWebSocket = () => {
+const connectWebSocket = () => {
   const storedId = localStorage.getItem('dumptrick_player_id')
   const serverHost = import.meta.env.VITE_SERVER_HOST
-  let url = new URL(`ws://${serverHost}:8000/ws`)
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  let url = new URL(`${protocol}//${serverHost}/ws`)
 
   if (storedId) url.searchParams.set('player_id', storedId)
 
@@ -47,7 +49,7 @@ function App() {
   const websocketRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    const websocket = createWebSocket()
+    const websocket = connectWebSocket()
     websocketRef.current = websocket
 
     websocket.onmessage = (event) => {
