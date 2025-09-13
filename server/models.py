@@ -161,17 +161,17 @@ class Trick:
         self.cards: List[str] = []
         self.is_last_trick: bool = False
         self.leading_suit: str = ""
-        self.winner: Player = None
+        self.winner_id: str = ""
         self.winning_card: str = ""
 
-    def update(self, card: str, player: Player):
+    def update(self, card: str, player_id: str):
         if not self.leading_suit:
             card_suit = card[-1]
             self.leading_suit = card_suit
 
         if is_higher_rank(card, self.winning_card):
             self.winning_card = card
-            self.winner = player
+            self.winner_id = player_id
 
     def to_dict(self) -> Dict[str, Any]:
         return {

@@ -64,14 +64,14 @@ class GameEngine:
             self._play_card(data["player_id"], data["card"])
 
         elif action == "end_turn":
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.5)  # For players to see played card
             self._end_turn()
 
         elif action == "play_bot_turn":
             self._play_bot_turn(data["bot_id"])
 
-        elif action == "end_game":
-            self._end_game()
+        elif action == "reset_game":
+            self._reset_game()
 
         await self.players.broadcast(
             {
@@ -108,7 +108,7 @@ class GameEngine:
         player.hand.remove(card)
         self.game_state.discard_pile.append(card)
 
-        self.game_state.current_trick.update(card, player)
+        self.game_state.current_trick.update(card, player_id)
         self.game_state.turn_phase = TurnPhase.TURN_COMPLETE
 
         asyncio.create_task(self.handle_action("end_turn"))
@@ -161,9 +161,10 @@ class GameEngine:
         if self._is_round_over():
             current_trick.is_last_trick = True
 
-        current_trick.winner.take_trick(current_trick)
+        winner = self.players.get(current_trick.winner_id)
+        winner.take_trick(current_trick)
 
-        winner_index = self.game_state.turn_order.index(current_trick.winner.player_id)
+        winner_index = self.game_state.turn_order.index(current_trick.winner_id)
         self.game_state.current_turn_index = winner_index
         self.game_state.trick_start_index = winner_index
 
@@ -177,7 +178,7 @@ class GameEngine:
         ScoreCalculator.set_round_scores(self.players, self.game_state.current_round)
 
         if self._is_game_over():
-            return self._complete_game()
+            return self._end_game()
 
         self.game_state.round_start_index = rotate_index(
             self.game_state.round_start_index, len(self.game_state.turn_order)
@@ -191,7 +192,7 @@ class GameEngine:
     def _is_game_over(self) -> bool:
         return self.game_state.current_round >= 5
 
-    def _complete_game(self):
+    def _end_game(self):
         self.game_state.game_phase = GamePhase.GAME_COMPLETE
         ScoreCalculator.set_winners(self.players)
 
@@ -208,7 +209,7 @@ class GameEngine:
             self.handle_action("play_card", {"player_id": bot_id, "card": card})
         )
 
-    def _end_game(self):
+    def _reset_game(self):
         self.game_state.reset()
         self.players.reset()
 

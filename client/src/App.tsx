@@ -129,7 +129,7 @@ interface GameControlsProps {
 
 function GameControls({ gameState, handleAction }: GameControlsProps) {
   const handleEndGame = () => {
-    if (confirm('Are you sure you want to end the game for everyone?')) handleAction('end_game')
+    if (confirm('Are you sure you want to end the game for everyone?')) handleAction('reset_game')
   }
 
   return (
