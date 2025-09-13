@@ -1,6 +1,5 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-import asyncio
 import json
 import uvicorn
 
@@ -52,33 +51,7 @@ async def websocket_endpoint(websocket: WebSocket):
             data = json.loads(message)
             action = data.get("action")
 
-            if action == "update_name":
-                player.update_name(data.get("name"))
-
-            elif action == "start_game":
-                game_engine.start_game()
-
-            elif action == "play_card":
-                await game_engine.play_card(player, data.get("card"))
-                await game_engine.players.broadcast(
-                    {
-                        "game_state": game_engine.game_state.to_dict(),
-                        "players": game_engine.players.to_dict(),
-                    }
-                )
-                await asyncio.sleep(0.5)
-                game_engine.advance_turn()
-                await handle_bot_turns()
-
-            elif action == "end_game":
-                game_engine.reset()
-
-            await game_engine.players.broadcast(
-                {
-                    "game_state": game_engine.game_state.to_dict(),
-                    "players": game_engine.players.to_dict(),
-                }
-            )
+            await game_engine.handle_action(action, data)
     except WebSocketDisconnect:
         player.clear_websocket()
 
@@ -86,30 +59,6 @@ async def websocket_endpoint(websocket: WebSocket):
             del game_engine.players[player_id]
 
         await game_engine.players.broadcast({"players": game_engine.players.to_dict()})
-
-
-async def handle_bot_turns():
-    while game_engine.game_state.game_phase == GamePhase.IN_PROGRESS:
-        next_player = game_engine.players.get(game_engine.game_state.current_player_id)
-        if not next_player:
-            break
-        if not next_player.is_bot():
-            break
-
-        card = game_engine.bot_strategy.choose_card(
-            next_player,
-            game_engine.game_state.current_trick,
-        )
-
-        await game_engine.play_card(next_player, card)
-        await game_engine.players.broadcast(
-            {
-                "game_state": game_engine.game_state.to_dict(),
-                "players": game_engine.players.to_dict(),
-            }
-        )
-        await asyncio.sleep(0.5)
-        game_engine.advance_turn()
 
 
 if __name__ == "__main__":

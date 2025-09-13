@@ -150,7 +150,7 @@ function Lobby({ handleAction, players, playerId }: LobbyProps) {
   const [playerName, setPlayerName] = useState(() => players[playerId]?.name)
 
   useEffect(() => {
-    handleAction('update_name', { name: playerName })
+    handleAction('update_name', { player_id: playerId, name: playerName })
   }, [playerName])
 
   const handlePrompt = () => {
@@ -349,7 +349,7 @@ function Hand({ gameState, handleAction, player }: HandProps) {
           card={card}
           disabled={isCardDisabled(card)}
           key={card}
-          onClick={() => handleAction('play_card', { card })}
+          onClick={() => handleAction('play_card', { player_id: player.player_id, card })}
         />
       ))}
     </div>

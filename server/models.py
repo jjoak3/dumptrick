@@ -69,11 +69,6 @@ class Player:
         except Exception:
             self.clear_websocket()
 
-    def update_name(self, name: str):
-        if not name:
-            return
-        self.name = name.strip()
-
     def is_bot(self) -> bool:
         return self.type == PlayerType.BOT
 
