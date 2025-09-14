@@ -220,6 +220,11 @@ p {
   min-height: var(--height-card);
 }
 
+.lobby .placeholder {
+  color: var(--fgColor-muted);
+  font-style: italic;
+}
+
 @keyframes logoWiggle {
   0%,
   100% {

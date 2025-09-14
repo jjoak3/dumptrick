@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
+const MIN_PLAYERS = 4
+
 interface GameState {
   current_player_id: string
   current_round: number
@@ -173,6 +175,17 @@ function Lobby({ handleAction, players, playerId }: LobbyProps) {
     }
   }
 
+  const renderPlaceholders = () => {
+    const openSlots = MIN_PLAYERS - Object.values(players).length
+    if (openSlots <= 0) return null
+
+    return Array.from({ length: openSlots }, (_, index) => (
+      <li className='placeholder' key={index}>
+        Waiting...
+      </li>
+    ))
+  }
+
   return (
     <div className='lobby'>
       <p>Players:</p>
@@ -180,6 +193,7 @@ function Lobby({ handleAction, players, playerId }: LobbyProps) {
         {Object.values(players).map((player) => (
           <li key={player.player_id}>{renderItem(player)}</li>
         ))}
+        {renderPlaceholders()}
       </ol>
     </div>
   )
