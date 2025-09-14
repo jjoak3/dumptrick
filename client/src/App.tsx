@@ -249,7 +249,7 @@ interface ScoreboardProps {
 
 function Scoreboard({ gameState, players, playerId }: ScoreboardProps) {
   const renderValue = (value: number | undefined) => {
-    return value == undefined ? <span className='placeholder'>-</span> : value
+    return value == 0 ? <span className='placeholder'>0</span> : value
   }
 
   return (
@@ -306,9 +306,9 @@ function Penalties({ gameState }: PenaltiesProps) {
 
   return (
     <details className='penalties-wrapper'>
-      <summary>Penalties ({gameState.current_round + 1})</summary>
+      <summary>Penalties ({gameState.current_round})</summary>
       <ul className='penalties'>
-        {penalties.slice(0, gameState.current_round + 1).map((penalty, index) => (
+        {penalties.slice(0, gameState.current_round).map((penalty, index) => (
           <li key={index}>{penalty}</li>
         ))}
       </ul>

@@ -2,14 +2,14 @@ from datetime import datetime
 from fastapi import WebSocket
 from typing import Any, Dict, List
 
-from constants import GAME_EXPIRATION_SECONDS, MAX_PLAYERS
+from constants import GAME_EXPIRATION_SECONDS, MAX_PLAYERS, NUM_ROUNDS
 from enums import GamePhase, PlayerType, TurnPhase
 from helpers import generate_player_id, is_higher_rank, parse_card
 
 
 class GameState:
     def __init__(self):
-        self.current_round: int = 0
+        self.current_round: int = 1
         self.current_trick: Trick = Trick()
         self.created_at: datetime = datetime.now()
         self.discard_pile: List[str] = []
@@ -58,7 +58,7 @@ class Player:
         self.is_winner: bool = False
         self.name: str = name
         self.player_id: str = player_id
-        self.scores: List[int] = []
+        self.scores: List[int] = [0] * NUM_ROUNDS
         self.tricks: List[Trick] = []
         self.type: PlayerType = type
         self.websocket: WebSocket = None
@@ -90,6 +90,11 @@ class Player:
 
     def take_trick(self, trick: "Trick"):
         self.tricks.append(trick)
+
+    def update_scores(self, round: int, score: int):
+        round_index = round - 1
+        if 0 <= round_index < NUM_ROUNDS:
+            self.scores[round_index] += score
 
     def reset(self):
         self.hand.clear()
