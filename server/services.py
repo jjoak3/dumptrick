@@ -55,24 +55,23 @@ class GameEngine:
 
     async def handle_action(self, action: str, data: dict = {}):
         if action == "update_name":
-            self._update_name(data["player_id"], data["name"])
+            await self._update_name(data["player_id"], data["name"])
 
         elif action == "start_game":
-            self._start_game()
+            await self._start_game()
 
         elif action == "play_card":
-            self._play_card(data["player_id"], data["card"])
-
-        elif action == "end_turn":
-            await asyncio.sleep(0.5)  # For players to see played card
-            self._end_turn()
-
-        elif action == "play_bot_turn":
-            self._play_bot_turn(data["bot_id"])
+            await self._play_card(data["player_id"], data["card"])
 
         elif action == "reset_game":
-            self.reset_game()
+            await self.reset_game()
 
+    async def _update_name(self, player_id: str, new_name: str):
+        self.players[player_id].name = new_name.strip()
+
+        await self._broadcast_state()
+
+    async def _broadcast_state(self):
         await self.players.broadcast(
             {
                 "game_state": self.game_state.to_dict(),
@@ -80,14 +79,13 @@ class GameEngine:
             }
         )
 
-    def _update_name(self, player_id: str, new_name: str):
-        self.players[player_id].name = new_name.strip()
-
-    def _start_game(self):
+    async def _start_game(self):
         self.players.add_bots()
 
         self._set_up_new_round()
         self.game_state.game_phase = GamePhase.IN_PROGRESS
+
+        await self._broadcast_state()
 
     def _set_up_new_round(self):
         self._set_turn_order()
@@ -99,7 +97,7 @@ class GameEngine:
     def _set_turn_order(self):
         self.game_state.turn_order = list(self.players.keys())
 
-    def _play_card(self, player_id: str, card: str):
+    async def _play_card(self, player_id: str, card: str):
         player = self.players[player_id]
 
         if not self._is_valid_play(player, card):
@@ -111,7 +109,9 @@ class GameEngine:
         self.game_state.current_trick.update(card, player_id)
         self.game_state.turn_phase = TurnPhase.TURN_COMPLETE
 
-        asyncio.create_task(self.handle_action("end_turn"))
+        await self._broadcast_state()
+
+        await self._end_turn()
 
     def _is_valid_play(self, player: "Player", card: str) -> bool:
         if card not in player.hand:
@@ -129,7 +129,9 @@ class GameEngine:
 
         return True
 
-    def _end_turn(self):
+    async def _end_turn(self):
+        await asyncio.sleep(0.5)
+
         self.game_state.current_turn_index = rotate_index(
             self.game_state.current_turn_index,
             len(self.game_state.turn_order),
@@ -142,12 +144,10 @@ class GameEngine:
         if self._is_round_over():
             self._end_round()
 
+        await self._broadcast_state()
+
         if self._is_bot_turn():
-            asyncio.create_task(
-                self.handle_action(
-                    "play_bot_turn", {"bot_id": self.game_state.current_player_id}
-                )
-            )
+            await self._play_bot_turn(self.game_state.current_player_id)
 
     def _is_trick_over(self) -> bool:
         return self.game_state.current_turn_index == self.game_state.trick_start_index
@@ -199,19 +199,19 @@ class GameEngine:
     def _is_bot_turn(self) -> bool:
         return self.players.get(self.game_state.current_player_id).is_bot()
 
-    def _play_bot_turn(self, bot_id: str):
+    async def _play_bot_turn(self, bot_id: str):
         card = self.bot_strategy.choose_card(
             self.players.get(bot_id),
             self.game_state.current_trick,
         )
 
-        asyncio.create_task(
-            self.handle_action("play_card", {"player_id": bot_id, "card": card})
-        )
+        await self._play_card(bot_id, card)
 
-    def reset_game(self):
+    async def reset_game(self):
         self.game_state.reset()
         self.players.reset()
+
+        await self._broadcast_state()
 
 
 class ScoreCalculator:
