@@ -139,7 +139,7 @@ class GameEngine:
         self.game_state.turn_phase = TurnPhase.NOT_STARTED
 
         if self._is_trick_over():
-            self._end_trick()
+            await self._end_trick()
 
         if self._is_round_over():
             self._end_round()
@@ -152,7 +152,7 @@ class GameEngine:
     def _is_trick_over(self) -> bool:
         return self.game_state.current_turn_index == self.game_state.trick_start_index
 
-    def _end_trick(self):
+    async def _end_trick(self):
         current_trick = self.game_state.current_trick
 
         current_trick.cards = self.game_state.discard_pile.copy()
@@ -164,11 +164,33 @@ class GameEngine:
         winner = self.players.get(current_trick.winner_id)
         winner.take_trick(current_trick)
 
+        await self._animate_card_scores()
+
         winner_index = self.game_state.turn_order.index(current_trick.winner_id)
         self.game_state.current_turn_index = winner_index
         self.game_state.trick_start_index = winner_index
 
         self.game_state.current_trick = Trick()
+
+    async def _animate_card_scores(self):
+        current_round = self.game_state.current_round
+        current_trick = self.game_state.current_trick
+
+        card_scores = []
+        for card in current_trick.cards:
+            card_score = ScoreCalculator.get_card_score(card, current_round + 1)
+            card_scores.append(card_score)
+
+            await self.players.broadcast({"card_scores": card_scores})
+            await asyncio.sleep(0.25)
+
+        if current_round >= 5 and current_trick.is_last_trick:
+            card_scores.append(100)
+            await self.players.broadcast({"card_scores": card_scores})
+            await asyncio.sleep(0.25)
+
+        await asyncio.sleep(0.5)
+        await self.players.broadcast({"card_scores": []})
 
     def _is_round_over(self) -> bool:
         return all(not player.hand for player in self.players.values())
@@ -216,22 +238,36 @@ class GameEngine:
 
 class ScoreCalculator:
     @staticmethod
+    def get_card_score(card: str, current_round: int) -> int:
+        suit = parse_card(card)[1]
+        score = 1
+
+        if current_round >= 2 and suit == "H":
+            score += 10
+        if current_round >= 3 and card in ["QC", "QD", "QH", "QS"]:
+            score += 25
+        if current_round >= 4 and card == "KS":
+            score += 50
+
+        return score
+
+    @staticmethod
     def set_round_scores(players: "Players", current_round: int):
         for player in players.values():
             score = ScoreCalculator._calculate_round_score(player, current_round)
             player.scores.append(score)
 
-    def _calculate_round_score(player: "Player", round_number: int) -> int:
+    def _calculate_round_score(player: "Player", current_round: int) -> int:
         score = 0
 
         score += ScoreCalculator._calculate_card_count_penalty(player.tricks)
-        if round_number >= 2:
+        if current_round >= 2:
             score += ScoreCalculator._calculate_hearts_penalty(player.tricks)
-        if round_number >= 3:
+        if current_round >= 3:
             score += ScoreCalculator._calculate_queens_penalty(player.tricks)
-        if round_number >= 4:
+        if current_round >= 4:
             score += ScoreCalculator._calculate_ks_penalty(player.tricks)
-        if round_number >= 5:
+        if current_round >= 5:
             score += ScoreCalculator._calculate_last_trick_penalty(player.tricks)
 
         return score

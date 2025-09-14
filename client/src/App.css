@@ -1,5 +1,6 @@
 :root {
   --bgColor-card: #fff;
+  --bgColor-default: #fff;
   --borderColor-card: #aaa;
   --borderColor-default: #999;
   --borderColor-focus: #000;
@@ -13,14 +14,16 @@
   --fgColor-muted: #999;
   --fgColor-subtle: #ccc;
   --height-card: calc(1.25rem * 3.5);
-  --rotate-left: -5.625deg;
-  --rotate-right: 5.625deg;
+  --rotate-card-left: -5.625deg;
+  --rotate-card-right: 5.625deg;
+  --rotate-cardScore-right: 45deg;
   --spacing-0: 0;
-  --spacing-0_5: 0.125rem;
-  --spacing-1: 0.25rem;
-  --spacing-2: 0.5rem;
-  --spacing-3: 0.75rem;
-  --spacing-4: 1rem;
+  --spacing-0_25: 0.25rem;
+  --spacing-0_5: 0.5rem;
+  --spacing-0_75: 0.75rem;
+  --spacing-1: 1rem;
+  --spacing-1_5: 1.5rem;
+  --transitionDuration-0_5: 500ms;
   --width-card: calc(1.25rem * 2.5);
 }
 
@@ -83,10 +86,10 @@ button:disabled > .card {
 @keyframes cardWiggle {
   0%,
   100% {
-    transform: rotate(var(--rotate-left)) translateY(calc(var(--spacing-2) * -1));
+    transform: rotate(var(--rotate-card-left)) translateY(calc(var(--spacing-0_5) * -1));
   }
   50% {
-    transform: rotate(var(--rotate-right)) translateY(calc(var(--spacing-2) * -1));
+    transform: rotate(var(--rotate-card-right)) translateY(calc(var(--spacing-0_5) * -1));
   }
 }
 
@@ -108,7 +111,7 @@ button:focus > .card {
   border-radius: var(--borderRadius-card);
   color: var(--fgColor-card);
   display: flex;
-  gap: var(--spacing-1);
+  gap: var(--spacing-0_25);
   height: var(--height-card);
   justify-content: center;
   user-select: none;
@@ -118,7 +121,7 @@ button:focus > .card {
 details.penalties-wrapper {
   color: var(--fgColor-muted);
   font-style: italic;
-  margin-top: var(--spacing-4);
+  margin-top: var(--spacing-1);
   white-space: pre;
 }
 
@@ -141,7 +144,7 @@ details.penalties-wrapper[open] > summary::before {
 
 hr {
   border: none;
-  margin-top: var(--spacing-4);
+  margin-top: var(--spacing-1);
 }
 
 hr::before {
@@ -150,73 +153,106 @@ hr::before {
 }
 
 ol {
-  margin-top: var(--spacing-4);
-  margin-left: var(--spacing-4);
+  margin-top: var(--spacing-1);
+  margin-left: var(--spacing-1);
 }
 
 ol > li {
-  margin-left: var(--spacing-4);
+  margin-left: var(--spacing-1);
 }
 
 p {
-  margin-top: var(--spacing-4);
+  margin-top: var(--spacing-1);
 }
 
 .app {
   overflow: hidden;
-  padding: var(--spacing-4);
+  padding: var(--spacing-1);
+}
+
+.card-scores {
+  --cardScore-height: var(--spacing-1);
+  --cardScore-offset: var(--spacing-1_5);
+
+  display: flex;
+  left: 0;
+  position: absolute;
+  top: calc((var(--cardScore-height) + var(--cardScore-offset)) * -1);
+}
+
+@keyframes animateCardScore {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--rotate-cardScore-right)) translateY(var(--spacing-1));
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0deg) translateY(0);
+  }
+}
+
+.card-scores > .card-score {
+  background-color: var(--bgColor-default);
+  font-weight: bold;
+  text-align: center;
+  width: var(--width-card);
+}
+
+.card-scores > .card-score:last-child {
+  animation: animateCardScore var(--transitionDuration-0_5) var(--easeOutExpo);
 }
 
 .discard-pile {
   display: flex;
-  margin-top: var(--spacing-4);
+  margin-top: var(--spacing-1);
   min-height: var(--height-card);
+  position: relative;
 }
 
 .discard-pile > .card:nth-child(odd) {
-  transform: rotate(var(--rotate-left));
+  transform: rotate(var(--rotate-card-left));
 }
 
 .discard-pile > .card:nth-child(even) {
-  transform: rotate(var(--rotate-right));
+  transform: rotate(var(--rotate-card-right));
 }
 
 @keyframes animateOddCard {
   0% {
-    transform: rotate(var(--rotate-right)) translateY(var(--spacing-4));
+    transform: rotate(var(--rotate-card-right)) translateY(var(--spacing-1));
   }
   100% {
-    transform: rotate(var(--rotate-left)) translateY(0);
+    transform: rotate(var(--rotate-card-left)) translateY(0);
   }
 }
 
 .discard-pile > .card.animate:nth-child(odd) {
-  animation: animateOddCard 500ms var(--easeOutExpo);
+  animation: animateOddCard var(--transitionDuration-0_5) var(--easeOutExpo);
 }
 
 @keyframes animateEvenCard {
   0% {
-    transform: rotate(var(--rotate-left)) translateY(var(--spacing-4));
+    transform: rotate(var(--rotate-card-left)) translateY(var(--spacing-1));
   }
   100% {
-    transform: rotate(var(--rotate-right)) translateY(0);
+    transform: rotate(var(--rotate-card-right)) translateY(0);
   }
 }
 
 .discard-pile > .card.animate:nth-child(even) {
-  animation: animateEvenCard 500ms var(--easeOutExpo);
+  animation: animateEvenCard var(--transitionDuration-0_5) var(--easeOutExpo);
 }
 
 .game-controls {
   display: flex;
-  gap: var(--spacing-4);
+  gap: var(--spacing-1);
 }
 
 .hand {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-2);
-  margin-top: var(--spacing-4);
+  gap: var(--spacing-0_5);
+  margin-top: var(--spacing-1);
   min-height: var(--height-card);
 }
 
@@ -228,10 +264,10 @@ p {
 @keyframes logoWiggle {
   0%,
   100% {
-    transform: rotate(var(--rotate-left));
+    transform: rotate(-5.625deg);
   }
   50% {
-    transform: rotate(var(--rotate-right));
+    transform: rotate(5.625deg);
   }
 }
 
@@ -242,7 +278,7 @@ p {
 }
 
 .scoreboard-wrapper {
-  margin-top: var(--spacing-4);
+  margin-top: var(--spacing-1);
   overflow-x: auto;
 }
 
@@ -268,8 +304,8 @@ p {
 .tricks {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-3);
-  margin-top: var(--spacing-4);
+  gap: var(--spacing-0_75);
+  margin-top: var(--spacing-1);
 }
 
 .trick {
@@ -281,7 +317,7 @@ p {
 
 @keyframes animateTrick {
   0% {
-    transform: translateY(var(--spacing-4));
+    transform: translateY(var(--spacing-1));
   }
   100% {
     transform: translateY(0);
@@ -289,7 +325,7 @@ p {
 }
 
 .trick.animate {
-  animation: animateTrick 500ms var(--easeOutExpo);
+  animation: animateTrick var(--transitionDuration-0_5) var(--easeOutExpo);
 }
 
 .trick > .card {
@@ -300,15 +336,15 @@ p {
 }
 
 .trick > .card:nth-child(odd) {
-  transform: rotate(var(--rotate-left));
+  transform: rotate(var(--rotate-card-left));
 }
 
 .trick > .card:nth-child(even) {
-  transform: rotate(var(--rotate-right));
+  transform: rotate(var(--rotate-card-right));
 }
 
 .trick:is(:focus, :hover) > .card {
-  margin-left: calc(var(--spacing-4) * -1);
+  margin-left: calc(var(--spacing-1) * -1);
   position: initial;
 }
 

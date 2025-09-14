@@ -44,6 +44,7 @@ const connectWebSocket = () => {
 }
 
 function App() {
+  const [cardScores, setCardScores] = useState<number[]>([])
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [players, setPlayers] = useState<Players>({})
   const [playerId, setPlayerId] = useState('')
@@ -58,6 +59,7 @@ function App() {
       try {
         const data = JSON.parse(event.data)
 
+        if (data.card_scores) setCardScores(data.card_scores)
         if (data.game_state) setGameState(data.game_state)
         if (data.players) setPlayers(data.players)
         if (data.player_id) setPlayerId(data.player_id)
@@ -101,6 +103,7 @@ function App() {
         )}
         {gameState && gameState.game_phase != 'NOT_STARTED' && players?.[playerId] && (
           <GameBoard //
+            cardScores={cardScores}
             gameState={gameState}
             handleAction={handleAction}
             players={players}
@@ -200,13 +203,14 @@ function Lobby({ handleAction, players, playerId }: LobbyProps) {
 }
 
 interface GameBoardProps {
+  cardScores: number[]
   gameState: GameState
   handleAction: (action: string, data?: Record<string, string>) => void
   players: Players
   playerId: string
 }
 
-function GameBoard({ gameState, players, playerId, handleAction }: GameBoardProps) {
+function GameBoard({ cardScores, gameState, handleAction, players, playerId }: GameBoardProps) {
   return (
     <>
       <Scoreboard //
@@ -219,6 +223,7 @@ function GameBoard({ gameState, players, playerId, handleAction }: GameBoardProp
       />
       <hr />
       <DiscardPile //
+        cardScores={cardScores}
         gameState={gameState}
       />
       <hr />
@@ -312,12 +317,20 @@ function Penalties({ gameState }: PenaltiesProps) {
 }
 
 interface DiscardPile {
+  cardScores: number[]
   gameState: GameState
 }
 
-function DiscardPile({ gameState }: DiscardPile) {
+function DiscardPile({ cardScores, gameState }: DiscardPile) {
   return (
     <div className='discard-pile'>
+      <div className='card-scores'>
+        {cardScores.map((cardScore, index) => (
+          <span className='card-score' key={index}>
+            +{cardScore}
+          </span>
+        ))}
+      </div>
       {gameState.discard_pile.map((card, index) => {
         const isTopCard = index === gameState.discard_pile.length - 1
         const topOffset = index * 0.5
