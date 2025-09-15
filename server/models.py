@@ -44,6 +44,7 @@ class GameState:
             "discard_pile": self.discard_pile,
             "game_phase": self.game_phase.name,
             "turn_phase": self.turn_phase.name,
+            "trick_start_index": self.trick_start_index,
         }
 
 

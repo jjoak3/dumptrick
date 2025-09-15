@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
 const MIN_PLAYERS = 4
+const PLAYER_COLORS = ['#f97316', '#eab308', '#22c55e', '#3b82f6']
 
 interface GameState {
   current_player_id: string
@@ -10,6 +11,7 @@ interface GameState {
   discard_pile: string[]
   game_phase: string
   turn_phase: string
+  trick_start_index: number
 }
 
 interface Players {
@@ -193,8 +195,10 @@ function Lobby({ handleAction, players, playerId }: LobbyProps) {
     <div className='lobby'>
       <p>Players:</p>
       <ol>
-        {Object.values(players).map((player) => (
-          <li key={player.player_id}>{renderItem(player)}</li>
+        {Object.values(players).map((player, index) => (
+          <li key={player.player_id} style={{ color: PLAYER_COLORS[index] }}>
+            {renderItem(player)}
+          </li>
         ))}
         {renderPlaceholders()}
       </ol>
@@ -225,6 +229,7 @@ function GameBoard({ cardScores, gameState, handleAction, players, playerId }: G
       <DiscardPile //
         cardScores={cardScores}
         gameState={gameState}
+        players={players}
       />
       <hr />
       <p>Your hand:</p>
@@ -268,10 +273,10 @@ function Scoreboard({ gameState, players, playerId }: ScoreboardProps) {
           </tr>
         </thead>
         <tbody>
-          {Object.entries(players).map(([id, player]) => (
+          {Object.entries(players).map(([id, player], index) => (
             <tr key={id}>
               <td>{player.player_id == gameState.current_player_id ? '* ' : '  '}</td>
-              <td>
+              <td style={{ color: PLAYER_COLORS[index] }}>
                 {player.name}
                 {player.player_id == playerId && ' (You)'}
                 {gameState.game_phase == 'GAME_COMPLETE' && player.is_winner && ' 👑'}
@@ -319,9 +324,20 @@ function Penalties({ gameState }: PenaltiesProps) {
 interface DiscardPile {
   cardScores: number[]
   gameState: GameState
+  players: Players
 }
 
-function DiscardPile({ cardScores, gameState }: DiscardPile) {
+function DiscardPile({ cardScores, gameState, players }: DiscardPile) {
+  const getPlayerIndex = (index: number) => {
+    return (index + gameState.trick_start_index) % Object.values(players).length
+  }
+
+  const getPlayerLabel = (index: number) => {
+    const playerName = Object.values(players)[getPlayerIndex(index)].name
+    const playerInitial = playerName.slice(0, 1)
+    return playerInitial
+  }
+
   return (
     <div className='discard-pile'>
       <div className='card-scores'>
@@ -340,6 +356,8 @@ function DiscardPile({ cardScores, gameState }: DiscardPile) {
             card={card}
             className={isTopCard ? 'animate' : ''}
             key={card}
+            playerColor={PLAYER_COLORS[getPlayerIndex(index)]}
+            playerLabel={getPlayerLabel(index)}
             style={{ top: `-${topOffset}px` }}
           />
         )
@@ -390,10 +408,12 @@ interface Card {
   className?: string
   disabled?: boolean
   onClick?: () => void
+  playerColor?: string
+  playerLabel?: string
   style?: React.CSSProperties
 }
 
-function Card({ card, className, disabled, onClick, style }: Card) {
+function Card({ card, className, disabled, onClick, playerColor, playerLabel, style }: Card) {
   const renderCardLabel = (card: string) => {
     let rank = card.slice(0, -1)
     let suit = card[card.length - 1]
@@ -428,6 +448,11 @@ function Card({ card, className, disabled, onClick, style }: Card) {
     </button>
   ) : (
     <div className={`card ${className}`} style={style}>
+      {playerLabel && (
+        <div className='badge' style={{ backgroundColor: playerColor }}>
+          {playerLabel}
+        </div>
+      )}
       {renderCardLabel(card)}
     </div>
   )
