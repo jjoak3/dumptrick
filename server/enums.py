@@ -12,18 +12,6 @@ class GamePhase(Enum):
     GAME_COMPLETE = auto()
 
 
-class RoundPhase(Enum):
-    NOT_STARTED = auto()
-    IN_PROGRESS = auto()
-    ROUND_COMPLETE = auto()
-
-
-class TrickPhase(Enum):
-    NOT_STARTED = auto()
-    IN_PROGRESS = auto()
-    TRICK_COMPLETE = auto()
-
-
 class TurnPhase(Enum):
     NOT_STARTED = auto()
     IN_PROGRESS = auto()

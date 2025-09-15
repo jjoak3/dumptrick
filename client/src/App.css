@@ -25,7 +25,7 @@
   --spacing-1: 1rem;
   --spacing-1_5: 1.5rem;
   --spacing-1_25: 1.25rem;
-  --transitionDuration-0_5: 500ms;
+  --transitionDuration: 400ms;
   --width-card: calc(1.25rem * 2.5);
 }
 
@@ -119,6 +119,12 @@ button:focus > .card {
   position: relative;
   user-select: none;
   width: var(--width-card);
+}
+
+.card.loser {
+  opacity: 0.5;
+  transform: translateY(var(--spacing-0_5));
+  transition: opacity var(--transitionDuration) var(--easeOutExpo), transform var(--transitionDuration) var(--easeOutExpo);
 }
 
 .card .badge {
@@ -222,7 +228,7 @@ p {
 }
 
 .card-scores > .card-score:last-child {
-  animation: animateCardScore var(--transitionDuration-0_5) var(--easeOutExpo);
+  animation: animateCardScore var(--transitionDuration) var(--easeOutExpo);
 }
 
 .discard-pile {
@@ -243,7 +249,7 @@ p {
 }
 
 .discard-pile > .card {
-  animation: animateCard var(--transitionDuration-0_5) var(--easeOutExpo);
+  animation: animateCard var(--transitionDuration) var(--easeOutExpo);
 }
 
 .game-controls {
@@ -328,7 +334,7 @@ p {
 }
 
 .trick.animate {
-  animation: animateTrick var(--transitionDuration-0_5) var(--easeOutExpo);
+  animation: animateTrick var(--transitionDuration) var(--easeOutExpo);
 }
 
 .trick > .card {

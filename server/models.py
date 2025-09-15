@@ -192,4 +192,5 @@ class Trick:
         return {
             "cards": self.cards,
             "leading_suit": self.leading_suit,
+            "winning_card": self.winning_card,
         }

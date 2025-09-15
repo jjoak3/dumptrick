@@ -31,6 +31,7 @@ interface Player {
 interface Trick {
   cards: string[]
   leading_suit: string
+  winning_card: string
 }
 
 const connectWebSocket = () => {
@@ -328,14 +329,32 @@ interface DiscardPile {
 }
 
 function DiscardPile({ cardScores, gameState, players }: DiscardPile) {
+  const getClassName = (card: string) => {
+    if (!isTrickOver()) return ''
+    if (!isWinningCard(card)) return 'loser'
+    return 'winner'
+  }
+
   const getPlayerIndex = (index: number) => {
     return (index + gameState.trick_start_index) % Object.values(players).length
   }
 
   const getPlayerLabel = (index: number) => {
     const playerName = Object.values(players)[getPlayerIndex(index)].name
-    const playerInitial = playerName.slice(0, 1)
-    return playerInitial
+    const firstLetter = playerName.slice(0, 1)
+
+    return firstLetter
+  }
+
+  const isTrickOver = () => {
+    const numCards = gameState.discard_pile.length
+    const numPlayers = Object.values(players).length
+
+    return numCards >= numPlayers && cardScores.length > 0
+  }
+
+  const isWinningCard = (card: string) => {
+    return card == gameState.current_trick.winning_card
   }
 
   return (
@@ -348,13 +367,12 @@ function DiscardPile({ cardScores, gameState, players }: DiscardPile) {
         ))}
       </div>
       {gameState.discard_pile.map((card, index) => {
-        const isTopCard = index === gameState.discard_pile.length - 1
         const topOffset = index * 0.5
 
         return (
           <Card //
             card={card}
-            className={isTopCard ? 'animate' : ''}
+            className={getClassName(card)}
             key={card}
             playerColor={PLAYER_COLORS[getPlayerIndex(index)]}
             playerLabel={getPlayerLabel(index)}
