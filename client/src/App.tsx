@@ -450,7 +450,7 @@ function Card({ card, className, disabled, onClick, playerColor, playerLabel, st
     <div className={`card ${className}`} style={style}>
       {playerLabel && (
         <div className='badge' style={{ backgroundColor: playerColor }}>
-          {playerLabel}
+          <span className='badge-label'>{playerLabel}</span>
         </div>
       )}
       {renderCardLabel(card)}

@@ -124,16 +124,20 @@ button:focus > .card {
 .card .badge {
   align-items: center;
   background-color: var(--borderColor-card);
-  border-radius: 100%;
-  bottom: calc(var(--spacing-0_5) * -1);
+  bottom: calc(var(--spacing-0_75) * -1);
   color: var(--fgColor-onEmphasis);
   display: flex;
   height: var(--spacing-1_25);
   justify-content: center;
-  left: calc(var(--spacing-0_5) * -1);
+  left: calc(var(--spacing-0_75) * -1);
   outline: var(--borderWidth-card) solid var(--bgColor-default);
   position: absolute;
+  transform: rotate(45deg);
   width: var(--spacing-1_25);
+}
+
+.card .badge > .badge-label {
+  transform: rotate(-45deg);
 }
 
 details.penalties-wrapper {
@@ -202,11 +206,11 @@ p {
 @keyframes animateCardScore {
   0% {
     opacity: 0;
-    transform: rotate(var(--rotate-cardScore-right)) translateY(var(--spacing-1));
+    transform: translateY(var(--spacing-1));
   }
   100% {
     opacity: 1;
-    transform: rotate(0deg) translateY(0);
+    transform: translateY(0);
   }
 }
 
