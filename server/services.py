@@ -20,13 +20,35 @@ class BotStrategy:
         if not current_trick.leading_suit:
             return BotStrategy._get_lowest_card(player.hand)
 
-        leading_suit = current_trick.leading_suit
-        cards_of_leading_suit = get_cards_of_suit(player.hand, leading_suit)
+        cards_of_leading_suit = get_cards_of_suit(
+            player.hand, current_trick.leading_suit
+        )
 
         if cards_of_leading_suit:
-            return min(cards_of_leading_suit, key=get_rank)
+            return BotStrategy._get_card_of_leading_suit(
+                cards_of_leading_suit, current_trick.cards
+            )
         else:
             return BotStrategy._get_highest_card(player.hand)
+
+    @staticmethod
+    def _get_card_of_leading_suit(cards: List[str], trick_cards: List[str]) -> str:
+        lowest_card = min(cards, key=get_rank)
+
+        if not trick_cards:
+            return lowest_card
+
+        lowest_trick_card = min(trick_cards, key=get_rank)
+
+        if get_rank(lowest_card) > get_rank(lowest_trick_card):
+            return lowest_card
+
+        cards_lower_than_lowest_trick_card = []
+        for card in cards:
+            if get_rank(card) < get_rank(lowest_trick_card):
+                cards_lower_than_lowest_trick_card.append(card)
+
+        return max(cards_lower_than_lowest_trick_card, key=get_rank)
 
     @staticmethod
     def _get_highest_card(cards: List[str]) -> str:
