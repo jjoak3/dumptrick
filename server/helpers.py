@@ -1,8 +1,21 @@
 from nanoid import generate
+from typing import List
 
 
 def generate_player_id() -> str:
     return generate(alphabet="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", size=4)
+
+
+def get_cards_of_suit(cards: List[str], suit: str) -> List[str]:
+    return [card for card in cards if get_suit(card) == suit]
+
+
+def get_rank(card: str) -> int:
+    return parse_card(card)[0]
+
+
+def get_suit(card: str) -> str:
+    return parse_card(card)[1]
 
 
 def is_higher_rank(card_a: str, card_b: str) -> bool:

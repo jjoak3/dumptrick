@@ -4,23 +4,65 @@ from typing import List
 
 from constants import DECK, NUM_ROUNDS, SUIT_ORDER
 from enums import GamePhase, TurnPhase
-from helpers import parse_card, rotate_index
+from helpers import get_cards_of_suit, get_rank, parse_card, rotate_index
 from models import GameState, Player, Players, Trick
 
 
 class BotStrategy:
     @staticmethod
     def choose_card(player: "Player", current_trick: "Trick") -> str:
-        cards_matching_leading_suit = []
-        for card in player.hand:
-            card_suit = parse_card(card)[1]
-            if card_suit == current_trick.leading_suit:
-                cards_matching_leading_suit.append(card)
+        """
+        1. If bot leads trick, play lowest card in hand
+        2. If bot can follow leading suit, play lowest card of that suit
+        3. If bot cannot follow leading suit, play highest card in hand
+        """
 
-        if cards_matching_leading_suit:
-            return min(cards_matching_leading_suit, key=parse_card)
+        if not current_trick.leading_suit:
+            return BotStrategy._get_lowest_card(player.hand)
+
+        leading_suit = current_trick.leading_suit
+        cards_of_leading_suit = get_cards_of_suit(player.hand, leading_suit)
+
+        if cards_of_leading_suit:
+            return min(cards_of_leading_suit, key=get_rank)
         else:
-            return max(player.hand, key=parse_card)
+            return BotStrategy._get_highest_card(player.hand)
+
+    @staticmethod
+    def _get_highest_card(cards: List[str]) -> str:
+        def _highest_card_key(card: str) -> tuple[int, int, int]:
+            """
+            Sorting preference:
+            1. Higher rank (dump more dangerous cards first)
+            2. Suit with fewer cards (deplete short suits)
+            3. Suit with higher total rank (dump from dangerous suits)
+            """
+
+            rank, suit = parse_card(card)
+            cards_of_suit = get_cards_of_suit(cards, suit)
+            cos_count = len(cards_of_suit)
+            cos_rank_sum = sum(get_rank(card) for card in cards_of_suit)
+            return (rank, -cos_count, cos_rank_sum)
+
+        return max(cards, key=_highest_card_key)
+
+    @staticmethod
+    def _get_lowest_card(cards: List[str]) -> str:
+        def _lowest_card_key(card: str) -> tuple[int, int, int]:
+            """
+            Sorting preference:
+            1. Lower rank (dump safer cards first)
+            2. Suit with fewer cards (deplete short suits)
+            3. Suit with lower total rank (dump from safer suits)
+            """
+
+            rank, suit = parse_card(card)
+            cards_of_suit = get_cards_of_suit(cards, suit)
+            cos_count = len(cards_of_suit)
+            cos_rank_sum = sum(get_rank(card) for card in cards_of_suit)
+            return (rank, cos_count, cos_rank_sum)
+
+        return min(cards, key=_lowest_card_key)
 
 
 class DeckManager:
