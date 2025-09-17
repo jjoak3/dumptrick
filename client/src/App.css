@@ -15,9 +15,12 @@
   --fgColor-onEmphasis: #fff;
   --fgColor-subtle: #ccc;
   --height-card: calc(1.25rem * 3.5);
-  --rotate-card-left: -11.25deg;
-  --rotate-card-right: 11.25deg;
-  --rotate-cardScore-right: 45deg;
+  --rotate-left-small: -5.625deg;
+  --rotate-left-medium: -11.25deg;
+  --rotate-left-large: -45deg;
+  --rotate-right-small: 5.625deg;
+  --rotate-right-medium: 11.25deg;
+  --rotate-right-large: 45deg;
   --spacing-0: 0;
   --spacing-0_25: 0.25rem;
   --spacing-0_5: 0.5rem;
@@ -88,10 +91,10 @@ button:disabled > .card {
 @keyframes cardWiggle {
   0%,
   100% {
-    transform: rotate(var(--rotate-card-left)) translateY(calc(var(--spacing-0_5) * -1));
+    transform: rotate(var(--rotate-left-small)) translateY(calc(var(--spacing-0_5) * -1));
   }
   50% {
-    transform: rotate(var(--rotate-card-right)) translateY(calc(var(--spacing-0_5) * -1));
+    transform: rotate(var(--rotate-right-small)) translateY(calc(var(--spacing-0_5) * -1));
   }
 }
 
@@ -138,12 +141,12 @@ button:focus > .card {
   left: calc(var(--spacing-0_75) * -1);
   outline: var(--borderWidth-card) solid var(--bgColor-default);
   position: absolute;
-  transform: rotate(45deg);
+  transform: rotate(var(--rotate-right-large));
   width: var(--spacing-1_25);
 }
 
 .card .badge > .badge-label {
-  transform: rotate(-45deg);
+  transform: rotate(var(--rotate-left-large));
 }
 
 details.penalties-wrapper {
@@ -241,7 +244,7 @@ p {
 
 @keyframes animateCard {
   0% {
-    transform: rotate(var(--rotate-card-right)) translateY(var(--spacing-1));
+    transform: rotate(var(--rotate-right-medium)) translateY(var(--spacing-1));
   }
   100% {
     transform: rotate(0) translateY(0);
@@ -273,10 +276,10 @@ p {
 @keyframes logoWiggle {
   0%,
   100% {
-    transform: rotate(-5.625deg);
+    transform: rotate(var(--rotate-left-small));
   }
   50% {
-    transform: rotate(5.625deg);
+    transform: rotate(var(--rotate-right-small));
   }
 }
 
@@ -345,11 +348,11 @@ p {
 }
 
 .trick > .card:nth-child(odd) {
-  transform: rotate(var(--rotate-card-left));
+  transform: rotate(var(--rotate-left-small));
 }
 
 .trick > .card:nth-child(even) {
-  transform: rotate(var(--rotate-card-right));
+  transform: rotate(var(--rotate-right-small));
 }
 
 .trick:is(:focus, :hover) > .card {
