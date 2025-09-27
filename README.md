@@ -62,13 +62,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-1. Install the requirements:
+2. Install the requirements:
 
 ```shell
 pip install requirements.txt
 ```
 
-1. In the `server` directory, start the server:
+3. In the `server` directory, start the server:
 
 ```shell
 cd server
@@ -84,13 +84,19 @@ cd client
 npm install
 ```
 
-1. Start the client development environment:
+2. Create a `.env` file in the `client` directory with the server host URL:
+
+```shell
+echo "VITE_SERVER_HOST=localhost:8000" > .env
+```
+
+3. Start the client development environment:
 
 ```shell
 npm run dev
 ```
 
-1. Visit the localhost URL shown in the terminal (e.g. `http://localhost:5173`)
+4. Visit the localhost URL shown in the terminal (e.g. `http://localhost:5173`)
 
 ## Overview
 
