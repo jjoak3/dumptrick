@@ -100,7 +100,7 @@ class Player:
     def reset(self):
         self.hand.clear()
         self.is_winner = False
-        self.scores.clear()
+        self.scores = [0] * NUM_ROUNDS
         self.tricks.clear()
 
     def to_dict(self) -> Dict[str, Any]:
