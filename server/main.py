@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import json
+import os
 import uvicorn
 
 from enums import GamePhase
@@ -9,11 +10,21 @@ from services import GameEngine
 
 
 app = FastAPI()
+
+allowed_origins = [
+    "http://localhost:5173",  # Default Vite dev server port
+    "http://localhost:4173",  # Default Vite preview server port
+]
+
+production_origin = os.getenv("PRODUCTION_ORIGIN")
+if production_origin:
+    allowed_origins.append(production_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
