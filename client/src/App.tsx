@@ -48,7 +48,9 @@ const connectWebSocket = () => {
 
 function App() {
   const [cardScores, setCardScores] = useState<number[]>([])
+  const [errorMessage, setErrorMessage] = useState<string>('')
   const [gameState, setGameState] = useState<GameState | null>(null)
+  const [isConnected, setIsConnected] = useState<boolean>(false)
   const [players, setPlayers] = useState<Players>({})
   const [playerId, setPlayerId] = useState('')
 
@@ -57,6 +59,10 @@ function App() {
   useEffect(() => {
     const websocket = connectWebSocket()
     websocketRef.current = websocket
+
+    websocket.onopen = () => {
+      setIsConnected(true)
+    }
 
     websocket.onmessage = (event) => {
       try {
@@ -68,6 +74,16 @@ function App() {
         if (data.player_id) setPlayerId(data.player_id)
       } catch (error) {
         console.error(error)
+      }
+    }
+
+    websocket.onclose = (event) => {
+      setIsConnected(false)
+
+      if (event.code == 1006) {
+        setErrorMessage('The server is unavailable.')
+      } else {
+        setErrorMessage(event.reason || 'Connection lost. Please try again later.')
       }
     }
 
@@ -86,40 +102,55 @@ function App() {
     if (websocket) websocket.send(message)
   }
 
+  const renderContent = () => {
+    if (!isConnected || !gameState) {
+      return (
+        <ErrorMessage //
+          errorMessage={errorMessage}
+        />
+      )
+    }
+
+    if (gameState?.game_phase == 'NOT_STARTED') {
+      return (
+        <Lobby //
+          handleAction={handleAction}
+          players={players}
+          playerId={playerId}
+        />
+      )
+    }
+
+    return (
+      <GameBoard //
+        cardScores={cardScores}
+        gameState={gameState}
+        handleAction={handleAction}
+        players={players}
+        playerId={playerId}
+      />
+    )
+  }
+
   return (
     <>
       <div className='app'>
         <Logo />
-        {gameState && (
-          <GameControls //
-            gameState={gameState}
-            handleAction={handleAction}
-          />
-        )}
-        <hr />
-        {gameState?.game_phase == 'NOT_STARTED' && players?.[playerId] && (
-          <Lobby //
-            handleAction={handleAction}
-            players={players}
-            playerId={playerId}
-          />
-        )}
-        {gameState && gameState.game_phase != 'NOT_STARTED' && players?.[playerId] && (
-          <GameBoard //
-            cardScores={cardScores}
-            gameState={gameState}
-            handleAction={handleAction}
-            players={players}
-            playerId={playerId}
-          />
-        )}
-        {gameState?.game_phase != 'NOT_STARTED' && !players?.[playerId] && <p>A game is already in session.</p>}
+        {renderContent()}
       </div>
     </>
   )
 }
 
 export default App
+
+interface ErrorMessageProps {
+  errorMessage: string
+}
+
+function ErrorMessage({ errorMessage }: ErrorMessageProps) {
+  return <p>{errorMessage}</p>
+}
 
 function Logo() {
   const logoString = '🚛 dumptrick'
@@ -129,24 +160,6 @@ function Logo() {
         <div key={index}>{char}</div>
       ))}
     </span>
-  )
-}
-
-interface GameControlsProps {
-  gameState: GameState
-  handleAction: (action: string, data?: Record<string, string>) => void
-}
-
-function GameControls({ gameState, handleAction }: GameControlsProps) {
-  const handleEndGame = () => {
-    if (confirm('Are you sure you want to end the game for everyone?')) handleAction('reset_game')
-  }
-
-  return (
-    <p className='game-controls'>
-      {gameState?.game_phase == 'NOT_STARTED' && <button onClick={() => handleAction('start_game')}>Start game</button>}
-      {gameState?.game_phase != 'NOT_STARTED' && <button onClick={handleEndGame}>End game</button>}
-    </p>
   )
 }
 
@@ -194,6 +207,9 @@ function Lobby({ handleAction, players, playerId }: LobbyProps) {
 
   return (
     <div className='lobby'>
+      <button className='game-control' onClick={() => handleAction('start_game')}>
+        Start game
+      </button>
       <p>Players:</p>
       <ol>
         {Object.values(players).map((player, index) => (
@@ -216,8 +232,15 @@ interface GameBoardProps {
 }
 
 function GameBoard({ cardScores, gameState, handleAction, players, playerId }: GameBoardProps) {
+  const handleEndGame = () => {
+    if (confirm('Are you sure you want to end the game for everyone?')) handleAction('reset_game')
+  }
+
   return (
     <>
+      <button className='game-control' onClick={handleEndGame}>
+        End game
+      </button>
       <Scoreboard //
         gameState={gameState}
         players={players}

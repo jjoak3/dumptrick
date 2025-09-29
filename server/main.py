@@ -41,8 +41,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
     player_id = websocket.query_params.get("player_id")
     if game_engine.players.is_new_player(player_id):
+        if game_engine.game_state.is_started():
+            await websocket.close(code=1000, reason="A game is already in session.")
+            return
         if game_engine.players.is_full():
-            await websocket.close()
+            await websocket.close(code=1000, reason="The lobby is full.")
             return
 
         player_id = generate_player_id()

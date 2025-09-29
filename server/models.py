@@ -33,6 +33,9 @@ class GameState:
         elapsed_time = datetime.now() - self.created_at
         return elapsed_time.total_seconds() > GAME_EXPIRATION_SECONDS
 
+    def is_started(self) -> bool:
+        return self.game_phase != GamePhase.NOT_STARTED
+
     def reset(self):
         self.__init__()
 
