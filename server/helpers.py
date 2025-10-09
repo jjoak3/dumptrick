@@ -58,9 +58,19 @@ def rotate_index(index: int, length: int) -> int:
 def sanitize_for_log(value: str) -> str:
     """
     Sanitize string values for safe logging by removing control characters.
-    Prevents log injection attacks by removing ASCII and Unicode control characters.
+    
+    Prevents log injection attacks by removing:
+    - ASCII control characters (0x00-0x1F, 0x7F-0x9F)
+    - Unicode line separator (U+2028)
+    - Unicode paragraph separator (U+2029)
+    
+    Args:
+        value: The string value to sanitize
+        
+    Returns:
+        Sanitized string safe for logging
     """
     if not isinstance(value, str):
         return str(value)
-    # Remove ASCII control characters, Unicode line/paragraph separators, and other control chars
+    # Remove ASCII control characters, Unicode line/paragraph separators
     return re.sub(r'[\x00-\x1F\x7F-\x9F\u2028\u2029]', '', value)
