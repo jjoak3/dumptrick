@@ -1,10 +1,13 @@
 from datetime import datetime
 from fastapi import WebSocket
+import logging
 from typing import Any, Dict, List
 
 from constants import GAME_EXPIRATION_SECONDS, MAX_PLAYERS, NUM_ROUNDS
 from enums import GamePhase, PlayerType, TurnPhase
 from helpers import generate_player_id, is_higher_rank, parse_card
+
+logger = logging.getLogger(__name__)
 
 
 class GameState:
@@ -134,8 +137,11 @@ class Players(Dict[str, Player]):
             player_id=player_id,
             type=PlayerType.HUMAN,
         )
+        logger.info(f"Player added to lobby: {player_id}")
 
     def add_bots(self):
+        num_bots_to_add = MAX_PLAYERS - len(self)
+        logger.info(f"Adding {num_bots_to_add} bots to reach {MAX_PLAYERS} players")
         while len(self) < MAX_PLAYERS:
             self._add_bot(generate_player_id())
 
@@ -145,6 +151,7 @@ class Players(Dict[str, Player]):
             player_id=player_id,
             type=PlayerType.BOT,
         )
+        logger.info(f"Bot added: {player_id}")
 
     def clear_tricks(self):
         for player in self.values():
