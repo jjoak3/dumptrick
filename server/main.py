@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import json
 import logging
 import os
+import re
 import uvicorn
 
 from enums import GamePhase
@@ -15,6 +16,14 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def sanitize_for_log(value: str) -> str:
+    """Sanitize string values for safe logging by removing control characters."""
+    if not isinstance(value, str):
+        return str(value)
+    # Remove control characters and newlines to prevent log injection
+    return re.sub(r'[\x00-\x1F\x7F-\x9F]', '', value)
 
 
 app = FastAPI()
@@ -81,7 +90,7 @@ async def websocket_endpoint(websocket: WebSocket):
             message = await websocket.receive_text()
             data = json.loads(message)
             action = data.get("action")
-            logger.info(f"Received action '{action}' from player {player_id}")
+            logger.info(f"Received action '{sanitize_for_log(str(action))}' from player {player_id}")
 
             await game_engine.handle_action(action, data)
     except WebSocketDisconnect:

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import random
 from typing import List
 
@@ -9,6 +10,14 @@ from helpers import get_cards_of_suit, get_rank, parse_card, rotate_index
 from models import GameState, Player, Players, Trick
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_for_log(value: str) -> str:
+    """Sanitize string values for safe logging by removing control characters."""
+    if not isinstance(value, str):
+        return str(value)
+    # Remove control characters and newlines to prevent log injection
+    return re.sub(r'[\x00-\x1F\x7F-\x9F]', '', value)
 
 
 class BotStrategy:
@@ -121,7 +130,7 @@ class GameEngine:
         self.deck_manager = DeckManager()
 
     async def handle_action(self, action: str, data: dict = {}):
-        logger.info(f"Handling action: {action}")
+        logger.info(f"Handling action: {sanitize_for_log(str(action))}")
         
         if action == "update_name":
             await self._update_name(data["player_id"], data["name"])
@@ -136,12 +145,12 @@ class GameEngine:
             await self.reset_game()
         
         else:
-            logger.warning(f"Unknown action received: {action}")
+            logger.warning(f"Unknown action received: {sanitize_for_log(str(action))}")
 
     async def _update_name(self, player_id: str, new_name: str):
         old_name = self.players[player_id].name
         self.players[player_id].name = new_name.strip()
-        logger.info(f"Player {player_id} name updated: '{old_name}' -> '{new_name.strip()}'")
+        logger.info(f"Player {player_id} name updated: '{sanitize_for_log(old_name)}' -> '{sanitize_for_log(new_name.strip())}'")
 
         await self._broadcast_state()
 
