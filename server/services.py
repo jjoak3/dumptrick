@@ -1,23 +1,14 @@
 import asyncio
 import logging
-import re
 import random
 from typing import List
 
 from constants import DECK, NUM_ROUNDS, SUIT_ORDER
 from enums import GamePhase, TurnPhase
-from helpers import get_cards_of_suit, get_rank, parse_card, rotate_index
+from helpers import get_cards_of_suit, get_rank, parse_card, rotate_index, sanitize_for_log
 from models import GameState, Player, Players, Trick
 
 logger = logging.getLogger(__name__)
-
-
-def sanitize_for_log(value: str) -> str:
-    """Sanitize string values for safe logging by removing control characters."""
-    if not isinstance(value, str):
-        return str(value)
-    # Remove control characters and newlines to prevent log injection
-    return re.sub(r'[\x00-\x1F\x7F-\x9F]', '', value)
 
 
 class BotStrategy:

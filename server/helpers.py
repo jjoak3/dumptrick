@@ -1,4 +1,5 @@
 from nanoid import generate
+import re
 from typing import List
 
 
@@ -52,3 +53,14 @@ def parse_card(card: str) -> tuple[int, str]:
 
 def rotate_index(index: int, length: int) -> int:
     return (index + 1) % length
+
+
+def sanitize_for_log(value: str) -> str:
+    """
+    Sanitize string values for safe logging by removing control characters.
+    Prevents log injection attacks by removing ASCII and Unicode control characters.
+    """
+    if not isinstance(value, str):
+        return str(value)
+    # Remove ASCII control characters, Unicode line/paragraph separators, and other control chars
+    return re.sub(r'[\x00-\x1F\x7F-\x9F\u2028\u2029]', '', value)

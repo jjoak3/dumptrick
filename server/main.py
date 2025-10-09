@@ -3,11 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import json
 import logging
 import os
-import re
 import uvicorn
 
 from enums import GamePhase
-from helpers import generate_player_id
+from helpers import generate_player_id, sanitize_for_log
 from services import GameEngine
 
 # Configure logging
@@ -16,14 +15,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-
-def sanitize_for_log(value: str) -> str:
-    """Sanitize string values for safe logging by removing control characters."""
-    if not isinstance(value, str):
-        return str(value)
-    # Remove control characters and newlines to prevent log injection
-    return re.sub(r'[\x00-\x1F\x7F-\x9F]', '', value)
 
 
 app = FastAPI()
