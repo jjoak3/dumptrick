@@ -133,4 +133,4 @@ npm run dev
 
 - [ ] Database (i.e. `redis`)
 - [ ] Rooms
-- [ ] Server-side error and event logs
+- [x] Server-side error and event logs

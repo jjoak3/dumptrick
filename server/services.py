@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import random
 from typing import List
 
@@ -6,6 +7,8 @@ from constants import DECK, NUM_ROUNDS, SUIT_ORDER
 from enums import GamePhase, TurnPhase
 from helpers import get_cards_of_suit, get_rank, parse_card, rotate_index
 from models import GameState, Player, Players, Trick
+
+logger = logging.getLogger(__name__)
 
 
 class BotStrategy:
@@ -118,6 +121,8 @@ class GameEngine:
         self.deck_manager = DeckManager()
 
     async def handle_action(self, action: str, data: dict = {}):
+        logger.info(f"Handling action: {action}")
+        
         if action == "update_name":
             await self._update_name(data["player_id"], data["name"])
 
@@ -129,9 +134,14 @@ class GameEngine:
 
         elif action == "reset_game":
             await self.reset_game()
+        
+        else:
+            logger.warning(f"Unknown action received: {action}")
 
     async def _update_name(self, player_id: str, new_name: str):
+        old_name = self.players[player_id].name
         self.players[player_id].name = new_name.strip()
+        logger.info(f"Player {player_id} name updated: '{old_name}' -> '{new_name.strip()}'")
 
         await self._broadcast_state()
 
@@ -144,10 +154,14 @@ class GameEngine:
         )
 
     async def _start_game(self):
+        logger.info("Starting game")
+        logger.info(f"Players in lobby: {list(self.players.keys())}")
+        
         self.players.add_bots()
 
         self._set_up_new_round()
         self.game_state.game_phase = GamePhase.IN_PROGRESS
+        logger.info(f"Game started - Round {self.game_state.current_round} - Turn order: {self.game_state.turn_order}")
 
         await self._broadcast_state()
 
@@ -165,8 +179,10 @@ class GameEngine:
         player = self.players[player_id]
 
         if not self._is_valid_play(player, card):
+            logger.warning(f"Invalid card play attempt - Player: {player_id}, Card: {card}")
             return
 
+        logger.info(f"Player {player_id} played card: {card}")
         player.hand.remove(card)
         self.game_state.discard_pile.append(card)
 
@@ -230,6 +246,8 @@ class GameEngine:
 
         winner = self.players.get(current_trick.winner_id)
         winner.take_trick(current_trick)
+        
+        logger.info(f"Trick ended - Winner: {current_trick.winner_id}, Cards: {current_trick.cards}, Scores: {card_scores}, Total: {sum(card_scores)}")
 
         await self._animate_card_scores(card_scores)
 
@@ -253,10 +271,13 @@ class GameEngine:
         return all(not player.hand for player in self.players.values())
 
     def _end_round(self):
+        logger.info(f"Round {self.game_state.current_round} ended")
+        
         if self._is_game_over():
             return self._end_game()
 
         self.game_state.current_round += 1
+        logger.info(f"Starting round {self.game_state.current_round}")
 
         self.game_state.round_start_index = rotate_index(
             self.game_state.round_start_index, len(self.game_state.turn_order)
@@ -271,8 +292,14 @@ class GameEngine:
         return self.game_state.current_round >= NUM_ROUNDS
 
     def _end_game(self):
+        logger.info("Game complete")
         self.game_state.game_phase = GamePhase.GAME_COMPLETE
         ScoreCalculator.set_winners(self.players)
+        
+        # Log final scores
+        for player_id, player in self.players.items():
+            total_score = sum(player.scores)
+            logger.info(f"Final score - Player {player_id}: {total_score} (Winner: {player.is_winner})")
 
     def _is_bot_turn(self) -> bool:
         return self.players.get(self.game_state.current_player_id).is_bot()
@@ -285,10 +312,13 @@ class GameEngine:
             self.players.get(bot_id),
             self.game_state.current_trick,
         )
+        
+        logger.info(f"Bot {bot_id} playing card: {card}")
 
         await self._play_card(bot_id, card)
 
     async def reset_game(self):
+        logger.info("Resetting game")
         self.game_state.reset()
         self.players.reset()
 
